@@ -6,6 +6,8 @@ import 'package:markdown_widget/markdown_widget.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
+enum MarkdownSelectionMode { defaultSystem, custom }
+
 class MarkdownWidget extends StatefulWidget {
   ///the markdown data
   final String data;
@@ -25,6 +27,21 @@ class MarkdownWidget extends StatefulWidget {
   ///make text selectable
   final bool selectable;
 
+  /// Selection menu behavior when [selectable] is true.
+  ///
+  /// Defaults to [MarkdownSelectionMode.defaultSystem], which keeps the same
+  /// behavior as previous versions.
+  final MarkdownSelectionMode selectionMode;
+
+  /// Custom builder for the first-level selection menu when
+  /// [selectionMode] is [MarkdownSelectionMode.custom].
+  final SelectableRegionContextMenuBuilder? customSelectionMenuBuilder;
+
+  /// Additional selection actions appended to the default menu when
+  /// [selectionMode] is [MarkdownSelectionMode.custom] and
+  /// [customSelectionMenuBuilder] is not provided.
+  final List<ContextMenuButtonItem>? customSelectionActions;
+
   ///the configs of markdown
   final MarkdownConfig? config;
 
@@ -38,6 +55,9 @@ class MarkdownWidget extends StatefulWidget {
     this.physics,
     this.shrinkWrap = false,
     this.selectable = true,
+    this.selectionMode = MarkdownSelectionMode.defaultSystem,
+    this.customSelectionMenuBuilder,
+    this.customSelectionActions,
     this.padding,
     this.config,
     this.markdownGeneratorConfig,
@@ -132,9 +152,31 @@ class _MarkdownWidgetState extends State<MarkdownWidget> {
         padding: widget.padding,
       ),
     );
-    return widget.selectable
-        ? SelectionArea(child: markdownWidget)
-        : markdownWidget;
+    if (!widget.selectable) {
+      return markdownWidget;
+    }
+    if (widget.selectionMode == MarkdownSelectionMode.defaultSystem) {
+      return SelectionArea(child: markdownWidget);
+    }
+    return SelectionArea(
+      contextMenuBuilder: widget.customSelectionMenuBuilder ?? _buildCustomSelectionMenu,
+      child: markdownWidget,
+    );
+  }
+
+
+  Widget _buildCustomSelectionMenu(
+    BuildContext context,
+    SelectableRegionState selectableRegionState,
+  ) {
+    final menuItems = [
+      ...selectableRegionState.contextMenuButtonItems,
+      ...?widget.customSelectionActions,
+    ];
+    return AdaptiveTextSelectionToolbar.buttonItems(
+      anchors: selectableRegionState.contextMenuAnchors,
+      buttonItems: menuItems,
+    );
   }
 
   ///wrap widget by [VisibilityDetector] that can know if [child] is visible

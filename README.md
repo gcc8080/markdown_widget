@@ -120,6 +120,39 @@ Cross-platform support for Select All and Copy function.
 
 ![image](https://user-images.githubusercontent.com/30992818/226107076-f32a919e-9a0c-4138-8a0b-266c6337e0af.png)
 
+## ✂️ Selection mode customization
+
+`MarkdownWidget` and `MarkdownBlock` now support a configurable selection mode.
+
+```dart
+MarkdownWidget(
+  data: data,
+  selectionMode: MarkdownSelectionMode.custom,
+  customSelectionActions: [
+    ContextMenuButtonItem(
+      label: 'Search',
+      onPressed: () {
+        ContextMenuController.removeAny();
+        // TODO: custom action
+      },
+    ),
+  ],
+)
+```
+
+Parameters:
+
+- `selectionMode`: defaults to `MarkdownSelectionMode.defaultSystem`.
+  - `defaultSystem`: uses the existing `SelectionArea` behavior (same as old versions).
+  - `custom`: enables custom menu behavior.
+- `customSelectionMenuBuilder`: optional builder for the first-level long-press menu.
+- `customSelectionActions`: optional extra menu actions appended to the default menu when `selectionMode` is `custom` and no custom builder is provided.
+
+Migration notes:
+
+- No breaking change by default. If you do not set `selectionMode`, behavior is unchanged.
+- Existing `selectable` semantics are unchanged.
+
 ## 🌐Html tag
 
 As the current package only implements the conversion of Markdown tags, it does not support the conversion of HTML tags by default. However, this functionality can be supported through extension. You can refer to the usage in [html_support.dart](https://github.com/asjqkkkk/markdown_widget/blob/dev/example/lib/markdown_custom/html_support.dart) for more details.

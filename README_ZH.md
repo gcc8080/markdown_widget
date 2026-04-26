@@ -122,6 +122,39 @@ import 'package:flutter_highlight/themes/a11y-light.dart';
 
 ![image](https://user-images.githubusercontent.com/30992818/226107076-f32a919e-9a0c-4138-8a0b-266c6337e0af.png)
 
+## ✂️ 选择菜单自定义
+
+`MarkdownWidget` 与 `MarkdownBlock` 现在支持选择模式配置。
+
+```dart
+MarkdownWidget(
+  data: data,
+  selectionMode: MarkdownSelectionMode.custom,
+  customSelectionActions: [
+    ContextMenuButtonItem(
+      label: 'Search',
+      onPressed: () {
+        ContextMenuController.removeAny();
+        // TODO: 自定义动作
+      },
+    ),
+  ],
+)
+```
+
+参数说明：
+
+- `selectionMode`：默认值为 `MarkdownSelectionMode.defaultSystem`。
+  - `defaultSystem`：沿用原有 `SelectionArea` 行为（与旧版本一致）。
+  - `custom`：启用自定义菜单行为。
+- `customSelectionMenuBuilder`：可选，用于构建长按后的首层菜单。
+- `customSelectionActions`：可选，当 `selectionMode` 为 `custom` 且未提供自定义 builder 时，会追加到默认菜单中。
+
+迁移说明：
+
+- 默认无 breaking change：不设置 `selectionMode` 时，行为完全不变。
+- 现有 `selectable` 语义保持不变。
+
 ## 🌐html 标签
 
 由于当前 package 只实现了对于 Markdown tag 的转换，所以默认不支持转换 html 标签。但可以通过扩展的方式来支持这个功能，具体可以参考这里的使用 [html_support.dart](https://github.com/asjqkkkk/markdown_widget/blob/dev/example/lib/markdown_custom/html_support.dart)

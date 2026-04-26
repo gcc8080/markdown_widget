@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../config/configs.dart';
 import '../config/markdown_generator.dart';
+import 'markdown.dart';
 
 ///use [MarkdownBlock] to build markdown by [Column]
 ///it does not support scrolling by default, but it will adapt to the width automatically.
@@ -11,6 +12,21 @@ class MarkdownBlock extends StatelessWidget {
 
   ///make text selectable
   final bool selectable;
+
+  /// Selection menu behavior when [selectable] is true.
+  ///
+  /// Defaults to [MarkdownSelectionMode.defaultSystem], which keeps the same
+  /// behavior as previous versions.
+  final MarkdownSelectionMode selectionMode;
+
+  /// Custom builder for the first-level selection menu when
+  /// [selectionMode] is [MarkdownSelectionMode.custom].
+  final SelectableRegionContextMenuBuilder? customSelectionMenuBuilder;
+
+  /// Additional selection actions appended to the default menu when
+  /// [selectionMode] is [MarkdownSelectionMode.custom] and
+  /// [customSelectionMenuBuilder] is not provided.
+  final List<ContextMenuButtonItem>? customSelectionActions;
 
   ///the configs of markdown
   final MarkdownConfig? config;
@@ -22,6 +38,9 @@ class MarkdownBlock extends StatelessWidget {
     Key? key,
     required this.data,
     this.selectable = true,
+    this.selectionMode = MarkdownSelectionMode.defaultSystem,
+    this.customSelectionMenuBuilder,
+    this.customSelectionActions,
     this.config,
     this.markdownGeneratorConfig,
   }) : super(key: key);
@@ -45,6 +64,25 @@ class MarkdownBlock extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
     );
-    return selectable ? SelectionArea(child: column) : column;
+    if (!selectable) {
+      return column;
+    }
+    if (selectionMode == MarkdownSelectionMode.defaultSystem) {
+      return SelectionArea(child: column);
+    }
+    return SelectionArea(
+      contextMenuBuilder: customSelectionMenuBuilder ??
+          (context, selectableRegionState) {
+            final menuItems = [
+              ...selectableRegionState.contextMenuButtonItems,
+              ...?customSelectionActions,
+            ];
+            return AdaptiveTextSelectionToolbar.buttonItems(
+              anchors: selectableRegionState.contextMenuAnchors,
+              buttonItems: menuItems,
+            );
+          },
+      child: column,
+    );
   }
 }
