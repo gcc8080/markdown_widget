@@ -31,6 +31,11 @@ class MarkdownWidget extends StatefulWidget {
   ///config for [MarkdownGenerator]
   final MarkdownGeneratorConfig? markdownGeneratorConfig;
 
+  ///optional configuration of the custom selection mode. When non-null and
+  ///`enable=true`, [selectable] is ignored and a custom long-press +
+  ///element-aware selection workflow is used instead of [SelectionArea].
+  final CustomSelectionConfig? customSelectionConfig;
+
   const MarkdownWidget({
     Key? key,
     required this.data,
@@ -41,6 +46,7 @@ class MarkdownWidget extends StatefulWidget {
     this.padding,
     this.config,
     this.markdownGeneratorConfig,
+    this.customSelectionConfig,
   }) : super(key: key);
 
   @override
@@ -53,6 +59,10 @@ class _MarkdownWidgetState extends State<MarkdownWidget> {
 
   ///The markdown string converted by MarkdownGenerator will be retained in the [_widgets]
   List<Widget> _widgets = [];
+
+  ///per-block build results, used by the custom selection mode for
+  ///element-aware hit testing and range resolution.
+  List<MarkdownBlockBuildResult> _blockResults = [];
 
   ///[TocController] combines [TocWidget] and [MarkdownWidget]
   TocController? _tocController;
@@ -91,16 +101,18 @@ class _MarkdownWidgetState extends State<MarkdownWidget> {
       textGenerator: generatorConfig.textGenerator,
     );
     final result =
-        markdownGenerator.buildWidgets(widget.data, onTocList: (tocList) {
+        markdownGenerator.buildWidgetsWithSpans(widget.data, onTocList: (tocList) {
       _tocController?.setTocList(tocList);
     });
-    _widgets.addAll(result);
+    _blockResults.addAll(result);
+    _widgets.addAll(result.map((e) => e.widget));
   }
 
   ///this method will be called when [updateState] or [dispose]
   void clearState() {
     indexTreeSet.clear();
     _widgets.clear();
+    _blockResults.clear();
   }
 
   @override
@@ -116,6 +128,7 @@ class _MarkdownWidgetState extends State<MarkdownWidget> {
 
   ///
   Widget buildMarkdownWidget() {
+    final useCustom = widget.customSelectionConfig?.enable == true;
     final markdownWidget = NotificationListener<UserScrollNotification>(
       onNotification: (notification) {
         final ScrollDirection direction = notification.direction;
@@ -126,12 +139,33 @@ class _MarkdownWidgetState extends State<MarkdownWidget> {
         shrinkWrap: widget.shrinkWrap,
         physics: widget.physics,
         controller: controller,
-        itemBuilder: (ctx, index) => wrapByAutoScroll(index,
-            wrapByVisibilityDetector(index, _widgets[index]), controller),
+        itemBuilder: (ctx, index) {
+          Widget child = _widgets[index];
+          if (useCustom && index < _blockResults.length) {
+            final br = _blockResults[index];
+            child = SelectableMarkdownElement(
+              index: index,
+              rootSpan: br.rootSpan,
+              paragraphKey: br.paragraphKey,
+              child: child,
+            );
+          }
+          return wrapByAutoScroll(
+              index, wrapByVisibilityDetector(index, child), controller);
+        },
         itemCount: _widgets.length,
         padding: widget.padding,
       ),
     );
+    if (useCustom) {
+      return CustomSelectionScope(
+        config: widget.customSelectionConfig!,
+        child: CustomSelectionController(
+          config: widget.customSelectionConfig!,
+          child: markdownWidget,
+        ),
+      );
+    }
     return widget.selectable
         ? SelectionArea(child: markdownWidget)
         : markdownWidget;

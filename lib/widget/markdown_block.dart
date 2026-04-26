@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../config/configs.dart';
 import '../config/markdown_generator.dart';
+import 'custom_selection/all.dart';
 
 ///use [MarkdownBlock] to build markdown by [Column]
 ///it does not support scrolling by default, but it will adapt to the width automatically.
@@ -18,12 +19,16 @@ class MarkdownBlock extends StatelessWidget {
   ///config for [MarkdownGenerator]
   final MarkdownGeneratorConfig? markdownGeneratorConfig;
 
+  ///optional configuration of the custom selection mode.
+  final CustomSelectionConfig? customSelectionConfig;
+
   const MarkdownBlock({
     Key? key,
     required this.data,
     this.selectable = true,
     this.config,
     this.markdownGeneratorConfig,
+    this.customSelectionConfig,
   }) : super(key: key);
 
   @override
@@ -39,12 +44,36 @@ class MarkdownBlock extends StatelessWidget {
       onNodeAccepted: generatorConfig.onNodeAccepted,
       textGenerator: generatorConfig.textGenerator,
     );
-    final widgets = markdownGenerator.buildWidgets(data);
+    final useCustom = customSelectionConfig?.enable == true;
+    final results = markdownGenerator.buildWidgetsWithSpans(data);
+    final children = <Widget>[];
+    for (var i = 0; i < results.length; i++) {
+      final br = results[i];
+      Widget w = br.widget;
+      if (useCustom) {
+        w = SelectableMarkdownElement(
+          index: i,
+          rootSpan: br.rootSpan,
+          paragraphKey: br.paragraphKey,
+          child: w,
+        );
+      }
+      children.add(w);
+    }
     final column = Column(
-      children: widgets,
+      children: children,
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
     );
+    if (useCustom) {
+      return CustomSelectionScope(
+        config: customSelectionConfig!,
+        child: CustomSelectionController(
+          config: customSelectionConfig!,
+          child: column,
+        ),
+      );
+    }
     return selectable ? SelectionArea(child: column) : column;
   }
 }

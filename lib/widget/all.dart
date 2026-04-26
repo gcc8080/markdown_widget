@@ -6,3 +6,4 @@ export 'inlines/all.dart';
 export 'proxy_rich_text.dart';
 export 'span_node.dart';
 export 'widget_visitor.dart';
+export 'custom_selection/all.dart';
