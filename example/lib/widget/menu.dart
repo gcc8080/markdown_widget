@@ -74,6 +74,17 @@ class Menu extends StatelessWidget {
                     if (isMobile) Navigator.of(context).pop();
                   },
                 ),
+
+                NavItem(
+                  title: 'Sample: Custom Selection',
+                  trailing: '✍️',
+                  isSelected: isSelected(RouterEnum.sample_custom_selection),
+                  isCollapsed: isCollapsed,
+                  onTap: () {
+                    GoRouter.of(context).go(RouterEnum.sample_custom_selection.path);
+                    if (isMobile) Navigator.of(context).pop();
+                  },
+                ),
               ],
             ),
           ),
