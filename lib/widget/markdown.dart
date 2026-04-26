@@ -89,6 +89,8 @@ class _MarkdownWidgetState extends State<MarkdownWidget> {
       generators: generatorConfig.generators,
       onNodeAccepted: generatorConfig.onNodeAccepted,
       textGenerator: generatorConfig.textGenerator,
+      selectionController: generatorConfig.selectionController,
+      onBlockLongPress: generatorConfig.onBlockLongPress,
     );
     final result =
         markdownGenerator.buildWidgets(widget.data, onTocList: (tocList) {

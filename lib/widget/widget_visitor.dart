@@ -25,6 +25,8 @@ class WidgetVisitor implements m.NodeVisitor {
 
   ///this function will be triggered when a [SpanNode] is accepted
   final SpanNodeAcceptCallback? onNodeAccepted;
+  final ElementVisitCallback? onElementVisitBefore;
+  final ElementVisitCallback? onElementVisitAfter;
 
   ///use [textGenerator] to custom your own [TextNode]
   final TextNodeGenerator? textGenerator;
@@ -33,6 +35,8 @@ class WidgetVisitor implements m.NodeVisitor {
     MarkdownConfig? config,
     this.generators = const [],
     this.onNodeAccepted,
+    this.onElementVisitBefore,
+    this.onElementVisitAfter,
     this.textGenerator,
   }) {
     this.config = config ?? MarkdownConfig.defaultConfig;
@@ -61,6 +65,7 @@ class WidgetVisitor implements m.NodeVisitor {
 
   @override
   bool visitElementBefore(m.Element element) {
+    onElementVisitBefore?.call(element, _currentSpanIndex, _spansStack.length);
     final node = getNodeByElement(element, config);
     final last = _spansStack.last;
     if (last is ElementNode) {
@@ -75,6 +80,7 @@ class WidgetVisitor implements m.NodeVisitor {
   @override
   void visitElementAfter(m.Element element) {
     _spansStack.removeLast();
+    onElementVisitAfter?.call(element, _currentSpanIndex, _spansStack.length);
   }
 
   @override
@@ -144,6 +150,8 @@ typedef TextNodeGenerator = SpanNode? Function(
 
 ///when a [SpanNope] is visited, this callback will be triggered
 typedef SpanNodeAcceptCallback = void Function(SpanNode node, int nodeIndex);
+typedef ElementVisitCallback = void Function(
+    m.Element element, int nodeIndex, int treeDepth);
 
 ///use [SpanNodeGeneratorWithTag] that you can custom your own [SpanNodeGenerator] with tag
 class SpanNodeGeneratorWithTag {
