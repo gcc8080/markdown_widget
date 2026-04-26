@@ -131,7 +131,7 @@ void main() {
             maxScrollExtent: 1,
             pixels: 1,
             viewportDimension: 1,
-            axisDirection: AxisDirection.down),
+            axisDirection: AxisDirection.down, devicePixelRatio: 1.0),
         context: ctx,
         direction: ScrollDirection.forward));
   });
