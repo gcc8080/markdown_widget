@@ -57,6 +57,8 @@ class MarkdownBlock extends StatelessWidget {
       generators: generatorConfig.generators,
       onNodeAccepted: generatorConfig.onNodeAccepted,
       textGenerator: generatorConfig.textGenerator,
+      selectionController: generatorConfig.selectionController,
+      onBlockLongPress: generatorConfig.onBlockLongPress,
     );
     final widgets = markdownGenerator.buildWidgets(data);
     final column = Column(
