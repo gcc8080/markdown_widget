@@ -32,6 +32,7 @@ dev_dependencies:
   mockito: ^5.3.2
   build_runner: ^2.3.3
   path: ^1.8.2
+  glados: ^1.1.1
 flutter:
 
 

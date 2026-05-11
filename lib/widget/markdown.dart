@@ -31,6 +31,19 @@ class MarkdownWidget extends StatefulWidget {
   ///config for [MarkdownGenerator]
   final MarkdownGeneratorConfig? markdownGeneratorConfig;
 
+  /// 是否开启自定义选择模式。
+  /// 为 true 时不使用 SelectionArea，启用自定义长按菜单和元素级选中。
+  /// 默认为 false。
+  final bool customSelectionMode;
+
+  /// 自定义 Context Menu 构建器。
+  /// 接收长按位置和菜单项列表，返回自定义菜单 Widget。
+  /// 若提供此参数，将完全替代默认 Context Menu 的渲染。
+  final ContextMenuWidgetBuilder? contextMenuBuilder;
+
+  /// 追加到默认菜单项列表末尾的自定义菜单项。
+  final List<SelectionMenuItem>? contextMenuItems;
+
   const MarkdownWidget({
     Key? key,
     required this.data,
@@ -41,6 +54,9 @@ class MarkdownWidget extends StatefulWidget {
     this.padding,
     this.config,
     this.markdownGeneratorConfig,
+    this.customSelectionMode = false,
+    this.contextMenuBuilder,
+    this.contextMenuItems,
   }) : super(key: key);
 
   @override
