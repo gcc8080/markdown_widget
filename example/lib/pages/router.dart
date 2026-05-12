@@ -1,3 +1,4 @@
+import 'package:example/custom_selection_example.dart';
 import 'package:example/pages/edit_markdown_page.dart';
 import 'package:example/pages/markdown_page.dart';
 import 'package:example/pages/sample_latex_page.dart';
@@ -39,6 +40,7 @@ final GoRouter router = GoRouter(
         _buildRoute(RouterEnum.editor, EditMarkdownPage()),
         _buildRoute(RouterEnum.sample_latex, LatexPage()),
         _buildRoute(RouterEnum.sample_html, HtmlPage()),
+        _buildRoute(RouterEnum.custom_selection, const CustomSelectionExample()),
       ],
     ),
   ],
@@ -95,6 +97,7 @@ enum RouterEnum {
   editor,
   sample_latex,
   sample_html,
+  custom_selection,
 }
 
 extension RoutePath on RouterEnum {

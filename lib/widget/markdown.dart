@@ -70,6 +70,12 @@ class _MarkdownWidgetState extends State<MarkdownWidget> {
   ///The markdown string converted by MarkdownGenerator will be retained in the [_widgets]
   List<Widget> _widgets = [];
 
+  ///SpanNode list corresponding to each widget, used for custom selection mode
+  List<SpanNode> _spanNodes = [];
+
+  ///GlobalKey list for each widget, used for hit testing in custom selection mode
+  List<GlobalKey> _elementKeys = [];
+
   ///[TocController] combines [TocWidget] and [MarkdownWidget]
   TocController? _tocController;
 
@@ -109,14 +115,21 @@ class _MarkdownWidgetState extends State<MarkdownWidget> {
     final result =
         markdownGenerator.buildWidgets(widget.data, onTocList: (tocList) {
       _tocController?.setTocList(tocList);
+    }, onSpanNodes: (spanNodes) {
+      _spanNodes = spanNodes;
     });
     _widgets.addAll(result);
+    // Generate GlobalKeys for each widget (used for hit testing in custom selection mode)
+    _elementKeys =
+        List.generate(_widgets.length, (_) => GlobalKey());
   }
 
   ///this method will be called when [updateState] or [dispose]
   void clearState() {
     indexTreeSet.clear();
     _widgets.clear();
+    _spanNodes.clear();
+    _elementKeys.clear();
   }
 
   @override
@@ -142,15 +155,40 @@ class _MarkdownWidgetState extends State<MarkdownWidget> {
         shrinkWrap: widget.shrinkWrap,
         physics: widget.physics,
         controller: controller,
-        itemBuilder: (ctx, index) => wrapByAutoScroll(index,
-            wrapByVisibilityDetector(index, _widgets[index]), controller),
+        itemBuilder: (ctx, index) {
+          Widget item = _widgets[index];
+          // Wrap each widget with a KeyedSubtree using its GlobalKey for hit testing
+          if (widget.customSelectionMode && index < _elementKeys.length) {
+            item = KeyedSubtree(
+              key: _elementKeys[index],
+              child: item,
+            );
+          }
+          return wrapByAutoScroll(
+              index, wrapByVisibilityDetector(index, item), controller);
+        },
         itemCount: _widgets.length,
         padding: widget.padding,
       ),
     );
-    return widget.selectable
-        ? SelectionArea(child: markdownWidget)
-        : markdownWidget;
+
+    if (widget.customSelectionMode) {
+      // 自定义选择模式：不使用 SelectionArea，使用 CustomSelectionOverlay
+      return CustomSelectionOverlay(
+        child: markdownWidget,
+        widgets: _widgets,
+        spanNodes: _spanNodes,
+        elementKeys: _elementKeys,
+        contextMenuBuilder: widget.contextMenuBuilder,
+        contextMenuItems: widget.contextMenuItems,
+      );
+    } else if (widget.selectable) {
+      // 原有行为：使用 SelectionArea
+      return SelectionArea(child: markdownWidget);
+    } else {
+      // 禁用选择
+      return markdownWidget;
+    }
   }
 
   ///wrap widget by [VisibilityDetector] that can know if [child] is visible

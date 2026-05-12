@@ -7,3 +7,5 @@ export 'proxy_rich_text.dart';
 export 'span_node.dart';
 export 'widget_visitor.dart';
 export 'selection/selection_models.dart';
+export 'selection/hit_test_helper.dart';
+export 'selection/custom_selection_overlay.dart';

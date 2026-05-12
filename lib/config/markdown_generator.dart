@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:markdown/markdown.dart' as m;
 
 import '../widget/blocks/leaf/heading.dart';
+import '../widget/span_node.dart';
 import '../widget/widget_visitor.dart';
 import 'configs.dart';
 import 'toc.dart';
@@ -28,8 +29,10 @@ class MarkdownGenerator {
 
   ///convert [data] to widgets
   ///[onTocList] can provider [Toc] list
+  ///[onSpanNodes] can provide the list of [SpanNode] corresponding to each widget
   List<Widget> buildWidgets(String data,
-      {ValueCallback<List<Toc>>? onTocList}) {
+      {ValueCallback<List<Toc>>? onTocList,
+      ValueCallback<List<SpanNode>>? onSpanNodes}) {
     final m.Document document = m.Document(
       extensionSet: m.ExtensionSet.gitHubFlavored,
       encodeHtml: false,
@@ -53,6 +56,7 @@ class MarkdownGenerator {
         });
     final spans = visitor.visit(nodes);
     onTocList?.call(tocList);
+    onSpanNodes?.call(spans);
     final List<Widget> widgets = [];
     spans.forEach((span) {
       InlineSpan inlineSpan = span.build();

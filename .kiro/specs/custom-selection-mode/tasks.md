@@ -6,7 +6,7 @@ Implement a custom selection mode for `markdown_widget` that provides long-press
 
 ## Tasks
 
-- [ ] 1. Set up project structure and core data models
+- [x] 1. Set up project structure and core data models
   - [x] 1.1 Create selection data models file
     - Create `lib/widget/selection/selection_models.dart`
     - Implement `SelectionState` enum (idle, contextMenuShown, textSelected, draggingHandle)
@@ -17,21 +17,21 @@ Implement a custom selection mode for `markdown_widget` that provides long-press
     - Define `ContextMenuWidgetBuilder` typedef
     - _Requirements: 3.6, 6.7_
 
-  - [~] 1.2 Write property test for menu item ordering (Property 2)
+  - [x] 1.2 Write property test for menu item ordering (Property 2)
     - **Property 2: Custom menu items are appended after default items**
     - **Validates: Requirements 3.6**
 
-  - [~] 1.3 Add new parameters to MarkdownWidget
+  - [x] 1.3 Add new parameters to MarkdownWidget
     - Modify `lib/widget/markdown.dart` to add `customSelectionMode` (bool, default false), `contextMenuBuilder`, and `contextMenuItems` parameters
     - Update the constructor and pass parameters through
     - _Requirements: 1.1, 2.1, 2.3, 3.4, 3.5, 3.6_
 
-  - [ ] 1.4 Write property test for customSelectionMode disabling SelectionArea (Property 1)
+  - [x] 1.4 Write property test for customSelectionMode disabling SelectionArea (Property 1)
     - **Property 1: customSelectionMode disables SelectionArea**
     - **Validates: Requirements 2.2**
 
-- [ ] 2. Implement HitTestHelper and SelectionManager
-  - [ ] 2.1 Implement HitTestHelper
+- [x] 2. Implement HitTestHelper and SelectionManager
+  - [x] 2.1 Implement HitTestHelper
     - Create `lib/widget/selection/hit_test_helper.dart`
     - Implement `findElementIndex()` to map global position to widget index using GlobalKeys and RenderBox
     - Implement `findTextOffset()` to find character offset within a RenderParagraph
@@ -39,7 +39,7 @@ Implement a custom selection mode for `markdown_widget` that provides long-press
     - Implement `getElementPlainText()` to extract plain text from a SpanNode
     - _Requirements: 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8_
 
-  - [ ] 2.2 Implement SelectionManager
+  - [x] 2.2 Implement SelectionManager
     - Create `lib/widget/selection/selection_manager.dart`
     - Extend `ChangeNotifier` for reactive state management
     - Implement state machine transitions (idle → contextMenuShown → textSelected → draggingHandle)
@@ -50,30 +50,30 @@ Implement a custom selection mode for `markdown_widget` that provides long-press
     - Implement `clearSelection()` and `getPlainText()`
     - _Requirements: 4.2, 4.7, 6.2, 6.3, 6.6, 6.7_
 
-  - [ ] 2.3 Write property test for text element full selection (Property 4)
+  - [x] 2.3 Write property test for text element full selection (Property 4)
     - **Property 4: Text elements are fully selected**
     - **Validates: Requirements 4.2, 4.3, 4.4, 4.5, 4.6, 4.8**
 
-  - [ ] 2.4 Write property test for non-text elements not selectable (Property 5)
+  - [x] 2.4 Write property test for non-text elements not selectable (Property 5)
     - **Property 5: Non-text elements cannot be selected**
     - **Validates: Requirements 4.7**
 
-  - [ ] 2.5 Write property test for handle role swap (Property 9)
+  - [x] 2.5 Write property test for handle role swap (Property 9)
     - **Property 9: Handle role swap when crossing**
     - **Validates: Requirements 6.7**
 
-- [ ] 3. Checkpoint - Core logic verification
+- [x] 3. Checkpoint - Core logic verification
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 4. Implement Context Menu components
-  - [ ] 4.1 Implement DefaultContextMenu widget
+- [x] 4. Implement Context Menu components
+  - [x] 4.1 Implement DefaultContextMenu widget
     - Create `lib/widget/selection/default_context_menu.dart`
     - Build default menu UI with rounded rectangle background, horizontal item layout
     - Support icon + text for each menu item
     - Handle item tap callbacks and menu close
     - _Requirements: 3.3, 3.8_
 
-  - [ ] 4.2 Implement ContextMenuOverlay manager
+  - [x] 4.2 Implement ContextMenuOverlay manager
     - Create `lib/widget/selection/context_menu_overlay.dart`
     - Implement `show()` method using Flutter Overlay API
     - Position menu 8 logical pixels above touch point; fall back to below if insufficient space
@@ -82,19 +82,19 @@ Implement a custom selection mode for `markdown_widget` that provides long-press
     - Handle menu dismiss on outside tap
     - _Requirements: 3.1, 3.4, 3.5, 3.7, 3.8, 5.1, 5.6_
 
-  - [ ] 4.3 Write property test for menu item click behavior (Property 3)
+  - [x] 4.3 Write property test for menu item click behavior (Property 3)
     - **Property 3: Menu item click triggers callback and closes menu**
     - **Validates: Requirements 3.8**
 
-- [ ] 5. Implement selection visual components
-  - [ ] 5.1 Implement SelectionHighlightPainter
+- [x] 5. Implement selection visual components
+  - [x] 5.1 Implement SelectionHighlightPainter
     - Create `lib/widget/selection/selection_highlight_painter.dart`
     - Use `CustomPainter` to draw semi-transparent highlight rectangles
     - Use `RenderParagraph.getBoxesForSelection()` to get text bounds
     - Support multi-element highlight painting (iterate over each element in range)
     - _Requirements: 4.2, 4.3, 4.4, 4.5, 4.6, 4.8_
 
-  - [ ] 5.2 Implement SelectionHandleWidget
+  - [x] 5.2 Implement SelectionHandleWidget
     - Create `lib/widget/selection/selection_handle_widget.dart`
     - Render draggable handle widgets using Overlay + Positioned
     - Use `GestureDetector` for drag gesture handling
@@ -103,16 +103,16 @@ Implement a custom selection mode for `markdown_widget` that provides long-press
     - Hide context menu during drag, show on drag end
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
-  - [ ] 5.3 Write property test for handle drag updating selection boundary (Property 7)
+  - [x] 5.3 Write property test for handle drag updating selection boundary (Property 7)
     - **Property 7: Dragging handle updates selection boundary**
     - **Validates: Requirements 6.2, 6.3**
 
-  - [ ] 5.4 Write property test for cross-element continuous selection (Property 8)
+  - [x] 5.4 Write property test for cross-element continuous selection (Property 8)
     - **Property 8: Cross-element continuous selection**
     - **Validates: Requirements 6.6**
 
-- [ ] 6. Implement CustomSelectionOverlay and integrate
-  - [ ] 6.1 Implement CustomSelectionOverlay widget
+- [x] 6. Implement CustomSelectionOverlay and integrate
+  - [x] 6.1 Implement CustomSelectionOverlay widget
     - Create `lib/widget/selection/custom_selection_overlay.dart`
     - Wrap child ListView with GestureDetector for long-press (500ms threshold)
     - Coordinate SelectionManager, ContextMenuOverlay, SelectionHighlightPainter, and SelectionHandleWidget
@@ -121,18 +121,18 @@ Implement a custom selection mode for `markdown_widget` that provides long-press
     - Implement outside-tap detection to dismiss menu and clear selection
     - _Requirements: 3.1, 3.2, 3.7, 4.1, 4.9, 4.10, 5.4, 6.4, 6.5_
 
-  - [ ] 6.2 Implement copy-to-clipboard functionality
+  - [x] 6.2 Implement copy-to-clipboard functionality
     - Implement clipboard write using Flutter Clipboard API
     - Copy plain text only (strip Markdown syntax markers)
     - On success: close menu, clear selection
     - On failure: preserve selection state and menu (no state change)
     - _Requirements: 5.2, 5.3, 5.5_
 
-  - [ ] 6.3 Write property test for copy operation writing plain text (Property 6)
+  - [x] 6.3 Write property test for copy operation writing plain text (Property 6)
     - **Property 6: Copy operation writes plain text to clipboard**
     - **Validates: Requirements 5.2**
 
-  - [ ] 6.4 Wire CustomSelectionOverlay into MarkdownWidget build logic
+  - [x] 6.4 Wire CustomSelectionOverlay into MarkdownWidget build logic
     - Modify `_MarkdownWidgetState.buildMarkdownWidget()` in `lib/widget/markdown.dart`
     - When `customSelectionMode == true`: wrap ListView with CustomSelectionOverlay (skip SelectionArea)
     - When `customSelectionMode == false && selectable == true`: use SelectionArea (existing behavior)
@@ -140,11 +140,11 @@ Implement a custom selection mode for `markdown_widget` that provides long-press
     - Pass `contextMenuBuilder` and `contextMenuItems` to CustomSelectionOverlay
     - _Requirements: 1.2, 1.3, 1.4, 1.5, 2.2, 2.4_
 
-- [ ] 7. Checkpoint - Full feature verification
+- [x] 7. Checkpoint - Full feature verification
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 8. Error handling and edge cases
-  - [ ] 8.1 Implement error handling and boundary conditions
+- [x] 8. Error handling and edge cases
+  - [x] 8.1 Implement error handling and boundary conditions
     - Handle long-press on empty area (no element hit): do not show menu
     - Handle long-press on non-text element + "select text" click: no selection, close menu
     - Limit selection boundary when handle dragged outside visible area
@@ -154,15 +154,15 @@ Implement a custom selection mode for `markdown_widget` that provides long-press
     - Ensure minimum 1 character selection (prevent empty selection)
     - _Requirements: 5.5, 6.7_
 
-  - [ ] 8.2 Write unit tests for error handling scenarios
+  - [x] 8.2 Write unit tests for error handling scenarios
     - Test clipboard write failure preserves state
     - Test empty markdown content long-press handling
     - Test single-character element selection and handle drag
     - Test widget dispose overlay cleanup
     - _Requirements: 5.5_
 
-- [ ] 9. Create example code
-  - [ ] 9.1 Create custom selection mode example
+- [x] 9. Create example code
+  - [x] 9.1 Create custom selection mode example
     - Create `example/lib/custom_selection_example.dart`
     - Demonstrate enabling custom selection mode with `customSelectionMode: true`
     - Demonstrate custom Context Menu styling (background color, text style)
@@ -171,7 +171,7 @@ Implement a custom selection mode for `markdown_widget` that provides long-press
     - Ensure example compiles with Flutter SDK >=3.10.6
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 10. Final checkpoint - Ensure all tests pass
+- [x] 10. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
