@@ -5,7 +5,10 @@
       "Bash(flutter test *)",
       "Bash(cmd.exe /c \"dir docs\\\\\")",
       "Bash(dart analyze *)",
-      "Bash(openspec list *)"
+      "Bash(openspec list *)",
+      "Bash(openspec new *)",
+      "Bash(openspec status *)",
+      "Bash(openspec instructions *)"
     ]
   }
 }
