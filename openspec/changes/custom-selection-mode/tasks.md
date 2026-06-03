@@ -2,29 +2,29 @@
 
 ## 1. Project Structure and Configuration
 
-- [ ] 1.1 Create directory structure for custom selection module
+- [x] 1.1 Create directory structure for custom selection module
   - Create `lib/widget/custom_selection/` directory
   - Create subdirectories: `menu/`, `style/`, `builder/`
-- [ ] 1.2 Create configuration classes file
+- [x] 1.2 Create configuration classes file
   - Create `lib/config/custom_selection_config.dart`
   - Define `CustomSelectionConfig`, `MenuStyle`, `MenuAnimationConfig`, `MenuExtension`
   - Define enums: `MenuLayout`, `MenuAnimationType`, `MenuInsertPosition`, `BuiltInMenuItem`
 
 ## 2. Core Selection Wrapper
 
-- [ ] 2.1 Create ElementContext class
+- [x] 2.1 Create ElementContext class
   - Create `lib/widget/custom_selection/element_context.dart`
   - Implement properties: index, elementType, plainText, fullMarkdown, selection, selectedText
-- [ ] 2.2 Create CustomSelectableWrapper widget
+- [x] 2.2 Create CustomSelectableWrapper widget
   - Create `lib/widget/custom_selection/custom_selectable_wrapper.dart`
   - Implement StatefulWidget with selection mode state
   - Add AnimatedSwitcher for mode transitions
   - Implement GestureDetector for long press detection
-- [ ] 2.3 Implement mode switching logic
+- [x] 2.3 Implement mode switching logic
   - Add static mode: Text.rich with GestureDetector overlay
   - Add selectable mode: SelectableText.rich with selection control
   - Implement smooth transition between modes
-- [ ] 2.4 Implement selection state management
+- [x] 2.4 Implement selection state management
   - Track selection mode state
   - Track selection range
   - Track dragging state
@@ -32,66 +32,66 @@
 
 ## 3. Menu System
 
-- [ ] 3.1 Create MenuItem class
+- [x] 3.1 Create MenuItem class
   - Create `lib/widget/custom_selection/menu/menu_item.dart`
   - Define properties: label, icon, onTap, onContextTap, enabled, style overrides
   - Create `CustomMenuItem` subclass with context support
-- [ ] 3.2 Create MenuOverlay widget
+- [x] 3.2 Create MenuOverlay widget
   - Create `lib/widget/custom_selection/menu/menu_overlay.dart`
   - Implement StatefulWidget with animation controller
   - Add position adjustment for screen boundaries
   - Implement enter and exit animations
-- [ ] 3.3 Create MenuBuilder class
+- [x] 3.3 Create MenuBuilder class
   - Create `lib/widget/custom_selection/menu/menu_builder.dart`
   - Implement buildInitialMenu() method
   - Implement buildCopyMenu() method
   - Handle insertion positions for custom items
   - Inject ElementContext into custom items
-- [ ] 3.4 Implement menu lifecycle management
+- [x] 3.4 Implement menu lifecycle management
   - Add Overlay insert/remove logic
   - Handle overlay disposal in widget dispose
   - Implement single-menu enforcement (remove previous before showing new)
 
 ## 4. Style System
 
-- [ ] 4.1 Create MenuStyle class
+- [x] 4.1 Create MenuStyle class
   - Create `lib/widget/custom_selection/style/menu_style.dart`
   - Define container style properties
   - Define text style properties
   - Define layout properties
   - Add default light/dark theme factories
-- [ ] 4.2 Create MenuAnimationConfig class
+- [x] 4.2 Create MenuAnimationConfig class
   - Create `lib/widget/custom_selection/style/menu_animation.dart`
   - Define animation properties
   - Define animation types enum
-- [ ] 4.3 Implement menu item rendering
+- [x] 4.3 Implement menu item rendering
   - Create menu item widget with styling
   - Apply container styles (background, border, shadow)
   - Apply text and icon styles
   - Implement layout modes (horizontal, vertical, grid)
-- [ ] 4.4 Implement interactive states
+- [x] 4.4 Implement interactive states
   - Add hover state detection and styling
   - Add pressed state detection and styling
   - Implement disabled state styling
-- [ ] 4.5 Implement responsive styles
+- [x] 4.5 Implement responsive styles
   - Add screen size detection
   - Apply mobile/tablet/desktop styles
 
 ## 5. Menu Animation
 
-- [ ] 5.1 Implement animation controller
+- [x] 5.1 Implement animation controller
   - Add AnimationController to MenuOverlay
   - Configure animation duration and curve
-- [ ] 5.2 Implement fade animation
+- [x] 5.2 Implement fade animation
   - Add FadeTransition for opacity changes
-- [ ] 5.3 Implement scale animation
+- [x] 5.3 Implement scale animation
   - Add ScaleTransition for size changes
-- [ ] 5.4 Implement slide animations
+- [x] 5.4 Implement slide animations
   - Add SlideTransition for direction-based animations
-- [ ] 5.5 Implement animation types
+- [x] 5.5 Implement animation types
   - Support fade-only, scale-only, fade-scale combinations
   - Support slide-from-top, slide-from-bottom, slide-from-left, slide-from-right
-- [ ] 5.6 Implement exit animation
+- [x] 5.6 Implement exit animation
   - Handle reverse animation on menu dismiss
   - Remove overlay after animation completes
 
