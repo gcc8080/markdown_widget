@@ -16,11 +16,25 @@
 - **THEN** the widget does not start native selection and does not display custom selection menus
 
 ### Requirement: Long press displays an initial custom menu before text selection
-In custom mode, `MarkdownWidget` SHALL display a customizable initial action menu when the user long-presses a supported Markdown element. The widget SHALL NOT create a text selection, selection highlight, or draggable handles until the user invokes the built-in "Select text" action.
+In custom mode, `MarkdownWidget` SHALL display a customizable initial action menu when the user long-presses a supported Markdown element. The widget SHALL NOT create a text selection, selection highlight, or draggable handles until the user invokes the built-in "Select text" action. For text-bearing targets, the initial-menu builder SHALL receive the built-in "Select text" action as configurable menu content so the application can render, hide, or reorder it.
 
 #### Scenario: Long press on paragraph text
 - **WHEN** the user long-presses text inside a paragraph in custom mode
-- **THEN** the initial custom menu appears with "Select text" and configured application actions
+- **THEN** the initial custom menu context includes "Select text" and configured application actions
+- **AND** no text is highlighted and no selection handles are displayed
+
+#### Scenario: Hide the built-in select text action
+- **WHEN** the initial-menu builder chooses not to render the built-in "Select text" action for a text-bearing target
+- **THEN** the initial custom menu appears without the "Select text" item
+- **AND** no text selection starts from that hidden action
+
+#### Scenario: Reorder the built-in select text action
+- **WHEN** the initial-menu builder renders the built-in "Select text" action after configured application actions
+- **THEN** the menu order follows the builder output
+
+#### Scenario: Long press on link text
+- **WHEN** the user long-presses link text in custom mode
+- **THEN** the initial custom menu appears before any link-specific long-press behavior
 - **AND** no text is highlighted and no selection handles are displayed
 
 #### Scenario: Long press on a text-free element with application actions
@@ -30,6 +44,10 @@ In custom mode, `MarkdownWidget` SHALL display a customizable initial action men
 #### Scenario: Long press on a text-free element without application actions
 - **WHEN** the user long-presses an image, horizontal rule, or other text-free element and no configured application action is available
 - **THEN** no custom menu appears
+
+#### Scenario: Long press on a task-list checkbox control
+- **WHEN** the user long-presses the checkbox control of a task-list item
+- **THEN** the initial custom menu does not expose "Select text"
 
 ### Requirement: Select text initializes the smallest semantic block range
 When the user invokes "Select text", `MarkdownWidget` SHALL initialize selection to the complete text of the resolved semantic block and SHALL display selection highlight, draggable handles, and the customizable selected-text menu.
@@ -47,6 +65,11 @@ When the user invokes "Select text", `MarkdownWidget` SHALL initialize selection
 - **THEN** only the third item's direct textual content is initially selected
 - **AND** preceding items, following items, and nested child lists are not initially selected
 
+#### Scenario: Select a task-list item by text
+- **WHEN** the user invokes "Select text" after long-pressing task-list item text
+- **THEN** only the current item's direct textual content is initially selected
+- **AND** the checkbox control and nested child lists are not initially selected
+
 #### Scenario: Select a nested list item
 - **WHEN** the user invokes "Select text" after long-pressing a nested list item outside a block quote
 - **THEN** only that nested item's direct textual content is initially selected
@@ -54,6 +77,11 @@ When the user invokes "Select text", `MarkdownWidget` SHALL initialize selection
 #### Scenario: Select content inside a multi-paragraph block quote
 - **WHEN** the user invokes "Select text" after long-pressing any text inside a block quote that contains multiple paragraphs
 - **THEN** the complete block quote text is initially selected
+
+#### Scenario: Select content inside nested block quotes
+- **WHEN** the user invokes "Select text" after long-pressing text inside a block quote nested inside another block quote
+- **THEN** the nearest containing block quote text is initially selected
+- **AND** ancestor block quote text outside that nearest quote is not initially selected
 
 #### Scenario: Select a code block
 - **WHEN** the user invokes "Select text" after long-pressing text inside a code block
@@ -66,6 +94,20 @@ When the user invokes "Select text", `MarkdownWidget` SHALL initialize selection
 #### Scenario: Select a table cell
 - **WHEN** the user invokes "Select text" after long-pressing text inside a table cell
 - **THEN** the complete current cell text is initially selected
+- **AND** the user can drag selection handles afterward to adjust the selected range
+
+### Requirement: Existing interactive element behavior is preserved
+Custom selection mode SHALL preserve existing tap or button behaviors for interactive Markdown content when those controls are not invoking the custom "Select text" action.
+
+#### Scenario: Tap link text
+- **WHEN** the user taps link text in custom mode
+- **THEN** the existing link tap behavior runs
+- **AND** the custom selection flow does not start
+
+#### Scenario: Press an existing code-block copy button
+- **WHEN** the user presses an existing code-block copy button
+- **THEN** the button keeps its existing copy behavior
+- **AND** the custom selection flow does not start
 
 ### Requirement: Users can adjust selection across Markdown blocks
 After initial semantic-block selection, `MarkdownWidget` SHALL allow the user to drag selection handles to refine or expand the selection across Markdown block boundaries while preserving native-style selection highlight and handles.

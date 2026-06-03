@@ -5,15 +5,16 @@
 ## What Changes
 
 - Add an opt-in custom selection mode for `MarkdownWidget`; existing `selectable` behavior remains unchanged when the mode is not enabled.
-- Add a customizable first-stage long-press menu. Text-bearing Markdown elements expose a built-in "Select text" action alongside application-defined actions.
+- Add a customizable first-stage long-press menu. Text-bearing Markdown elements provide a built-in "Select text" action alongside application-defined actions, and menu builders may hide or reorder that built-in action.
 - Programmatically initialize selection to the smallest semantic block associated with the pressed content:
   - headings select the complete heading;
   - paragraphs select the complete paragraph;
-  - list items select only the current item's direct content, excluding nested child lists;
-  - block quotes select the complete quote, including all paragraphs inside it;
-  - code blocks select the complete code block;
-  - inline formatting and links resolve to their containing block;
-  - non-text elements such as images and horizontal rules do not expose "Select text".
+  - list items select only the current item's direct text content, excluding checkbox controls and nested child lists;
+  - block quotes select the nearest containing quote, including all paragraphs inside that quote;
+  - code blocks select the complete code block, while existing code-block copy buttons keep their independent behavior;
+  - table text selects the current cell and can be adjusted by dragging handles afterward;
+  - inline formatting and links resolve to their containing block, with link long press opening the custom menu first and link tap preserving the existing navigation behavior;
+  - non-text elements such as images, horizontal rules, and checkbox controls do not expose "Select text".
 - Reuse native-style selection highlight and draggable handles after text selection starts, while using a customizable selected-text action menu that includes copy and application-defined actions.
 - Preserve selection while scrolling. Hide the selected-text menu during scrolling and handle dragging; restore it after handle dragging ends, but not automatically after scrolling ends.
 - Clear the selection, handles, and menu when the user taps outside the selected region or invokes a menu action. Tapping inside the selected region preserves the selection and reopens the selected-text menu.

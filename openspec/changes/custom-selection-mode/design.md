@@ -53,7 +53,7 @@ The configuration exposes builders for:
 - the selected-text action menu;
 - additional application actions for each menu.
 
-Builders receive menu anchors, semantic target metadata, selected plain text where applicable, and controlled actions such as select text, copy, dismiss, and invoke application action.
+Builders receive menu anchors, semantic target metadata, selected plain text where applicable, and controlled actions such as select text, copy, dismiss, and invoke application action. The built-in "Select text" action is provided to the initial-menu builder by default for text-bearing targets, but the builder may hide it, reorder it, or render it with custom content.
 
 **Alternative considered:** add a separate boolean flag and multiple callback parameters directly on `MarkdownWidget`. This is rejected because the feature has several extension points and lifecycle policies that should evolve as one cohesive configuration.
 
@@ -77,14 +77,17 @@ Target resolution follows these rules:
 | --- | --- |
 | `h1` through `h6` | complete heading |
 | `p` | complete paragraph |
-| `li` | direct textual content of the current list item, excluding nested child lists |
-| content inside `blockquote` | complete outer block quote, including all paragraphs inside it |
-| `pre` code block | complete code block |
-| inline link, emphasis, strong text, inline code | containing semantic block |
-| table text | current cell |
+| `li` text | direct textual content of the current list item, excluding checkbox controls and nested child lists |
+| task-list checkbox control | no text-selection target |
+| content inside `blockquote` | nearest containing block quote, including all paragraphs inside that quote |
+| `pre` code block text | complete code block |
+| existing code-block copy button | independent button behavior; no custom selection flow |
+| inline emphasis, strong text, inline code | containing semantic block |
+| inline link text | containing semantic block; long press opens the custom menu first, tap preserves existing link navigation |
+| table cell text | current cell |
 | image, horizontal rule, other text-free node | no text-selection target |
 
-Block-quote resolution intentionally overrides nested paragraph and list-item granularity. Nested lists remain independent targets when they are not inside a block quote.
+Block-quote resolution intentionally overrides nested paragraph and list-item granularity, but resolves to the nearest containing `blockquote` when quotes are nested. Nested lists remain independent targets when they are not inside a block quote.
 
 **Alternative considered:** attach a key only to widgets returned by `MarkdownGenerator.buildWidgets()`. This is rejected because list items, block-quote contents, table cells, and code lines can render inside nested `WidgetSpan` trees.
 
@@ -111,6 +114,8 @@ Use application-owned overlay entries for both menus. This permits exact lifecyc
 
 - Long press on a text-bearing target opens the initial menu without creating a selection.
 - Long press on a text-free target omits "Select text"; the initial menu appears only if application actions remain.
+- Long press on link text is treated as a text-bearing target and opens the custom menu first; normal taps on links continue to use the existing link tap behavior.
+- Long press on a task-list checkbox control or an existing code-block copy button does not expose "Select text" and does not hijack the control's existing behavior.
 - Choosing "Select text" closes the initial menu, initializes the semantic-unit selection, shows handles, and opens the selected-text menu.
 - Starting a handle drag hides the selected-text menu without clearing selection.
 - Finishing a handle drag reopens the selected-text menu at the updated range.

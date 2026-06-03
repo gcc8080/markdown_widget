@@ -1,6 +1,6 @@
 ## 1. Public API and Internal Models
 
-- [ ] 1.1 Add and export `MarkdownSelectionConfig`, menu builder contracts, menu action models, semantic target metadata, and selected-text context models.
+- [ ] 1.1 Add and export `MarkdownSelectionConfig`, menu builder contracts, menu action models, semantic target metadata, and selected-text context models; expose built-in actions as builder-controlled content so applications can hide or reorder "Select text".
 - [ ] 1.2 Add the optional `selectionConfig` parameter to `MarkdownWidget` and preserve the existing `SelectionArea` path when the configuration is absent.
 - [ ] 1.3 Ensure `MarkdownWidget(selectable: false)` bypasses both existing selection and the custom selection path even when `selectionConfig` is provided.
 
@@ -8,10 +8,10 @@
 
 - [ ] 2.1 Extend the Markdown generation pipeline to retain stable semantic selection-unit identities, plain text, ancestor metadata, and viewport geometry adapters only when custom mode is enabled.
 - [ ] 2.2 Add semantic-unit wrappers for headings, paragraphs, code blocks, table cells, and list-item direct content without breaking existing rendering customization hooks.
-- [ ] 2.3 Implement list-item resolution so initial selection includes only the current item's direct textual content and excludes nested child lists.
-- [ ] 2.4 Implement block-quote resolution so pressing any nested content initializes selection to the complete block quote, including multiple paragraphs.
-- [ ] 2.5 Mark images, horizontal rules, and other text-free nodes as targets that do not expose the built-in "Select text" action.
-- [ ] 2.6 Resolve inline links, emphasis, strong text, and inline code to their containing semantic block.
+- [ ] 2.3 Implement list-item resolution so initial selection includes only the current item's direct textual content and excludes checkbox controls and nested child lists.
+- [ ] 2.4 Implement block-quote resolution so pressing any nested content initializes selection to the nearest containing block quote, including multiple paragraphs in that quote.
+- [ ] 2.5 Mark images, horizontal rules, task-list checkbox controls, and other text-free nodes as targets that do not expose the built-in "Select text" action.
+- [ ] 2.6 Resolve inline links, emphasis, strong text, and inline code to their containing semantic block; preserve existing link tap behavior while making link long press open the custom menu first.
 
 ## 3. Controlled Selection Engine
 
@@ -31,18 +31,19 @@
 - [ ] 4.6 Preserve selection and reopen the selected-text menu when the user taps inside the active range; clear selection, handles, and menu when the user taps outside it.
 - [ ] 4.7 Implement copy and configured selected-text actions so selection, handles, and menu clear before the action executes; copy rendered plain text and preserve code-block line breaks.
 - [ ] 4.8 Clamp menu anchors to overlay bounds so custom menus remain visible near viewport edges.
+- [ ] 4.9 Preserve existing code-block copy button behavior and ensure pressing that button does not enter the custom selection flow.
 
 ## 5. Example and Documentation
 
 - [ ] 5.1 Add a runnable custom selection mode example under `example/` with customized initial and selected-text menus plus at least one additional application action.
-- [ ] 5.2 Document the opt-in API, semantic-block rules, menu lifecycle, plain-text copy semantics, Android/iOS touch scope, and first-release non-goals in package documentation.
+- [ ] 5.2 Document the opt-in API, semantic-block rules, menu lifecycle, builder control over built-in actions, plain-text copy semantics, Android/iOS touch scope, and first-release non-goals in package documentation.
 
 ## 6. Tests and Flutter 3.27.4 Verification
 
 - [ ] 6.1 Add regression tests proving the existing default selection path remains unchanged without `selectionConfig` and all selection paths remain disabled when `selectable` is `false`.
-- [ ] 6.2 Add widget tests for initial-menu behavior, including no immediate selection and text-free targets with and without application actions.
-- [ ] 6.3 Add semantic initialization tests for headings, paragraphs, list-item direct content, nested lists, multi-paragraph block quotes, code blocks, inline formatting, and table cells.
-- [ ] 6.4 Add interaction tests for cross-block handle dragging, drag-time menu hiding and restoration, tap-inside restoration, tap-outside clearing, and action-time clearing.
+- [ ] 6.2 Add widget tests for initial-menu behavior, including no immediate selection, builder hide/reorder of "Select text", link long press, and text-free targets with and without application actions.
+- [ ] 6.3 Add semantic initialization tests for headings, paragraphs, list-item direct content, task-list item text, nested lists, multi-paragraph block quotes, nested block quotes, code blocks, inline formatting, and table cells.
+- [ ] 6.4 Add interaction tests for table-cell handle adjustment, cross-block handle dragging, drag-time menu hiding and restoration, tap-inside restoration, tap-outside clearing, and action-time clearing.
 - [ ] 6.5 Add scroll tests proving selection survives endpoint scrolling out of and back into the viewport while menus remain hidden after scrolling ends.
 - [ ] 6.6 Repair or replace the local Flutter `3.27.4` FVM SDK if its Dart VM crash persists, then run formatter, analyzer, package widget tests, and example verification with Flutter `3.27.4`.
 - [ ] 6.7 Manually verify Android and iOS touch long-press flows against the custom selection example under Flutter `3.27.4`.
