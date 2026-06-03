@@ -35,7 +35,16 @@ When custom selection mode is enabled:
    - Menu hides during drag, reappears when drag ends
    - Clicking inside selection re-shows menu
    - Clicking outside selection clears everything
-4. **Scroll behavior**: Selection and handles persist when scrolling in/out of view
+4. **Scroll behavior**: Selection and handles persist when scrolling; menu hides during scroll and reappears when scrolling stops
+
+### Element-Specific Selection Behavior
+
+- **Tables**: Long press on table cell → selects that cell only (not entire table)
+- **Images**: Long press on image → no custom menu (images have no text content)
+- **Links**: Long press on link → selects display text only (not URL); tap for navigation
+- **Nested elements**: Selects innermost block-level element (e.g., list item inside blockquote)
+- **Inline elements** (bold, italic, inline code): Selects containing paragraph
+- **Non-content elements** (horizontal rules, empty space): No selection menu
 
 When custom selection mode is disabled (default), behavior remains unchanged using Flutter's `SelectionArea`.
 

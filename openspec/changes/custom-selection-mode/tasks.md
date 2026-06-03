@@ -126,6 +126,13 @@
 - [ ] 7.3 Implement element type detection
   - Add logic to determine element type from SpanNode
   - Pass element type to ElementContext
+- [ ] 7.4 Implement element-specific selection rules
+  - Add table cell selection logic
+  - Add image element exclusion logic
+  - Add link display text selection logic
+  - Add nested element (innermost) selection logic
+  - Add inline element (paragraph) selection logic
+  - Add non-content element exclusion logic
 
 ## 8. Extension API
 
@@ -203,7 +210,15 @@
   - Test full selection flow
   - Test menu interactions
   - Test extension API
-- [ ] 12.4 Manual testing on devices
+- [ ] 12.4 Add element-specific selection tests
+  - Test table cell selection
+  - Test image element exclusion
+  - Test link text selection
+  - Test nested element selection (innermost)
+  - Test inline element selection (paragraph)
+  - Test non-content element exclusion
+  - Test drag selection across nested boundaries
+- [ ] 12.5 Manual testing on devices
   - Test on Android
   - Test on iOS
   - Test scroll behavior

@@ -141,6 +141,32 @@ This approach is simple but limited:
 - **B. AbsorbPointer**
   - Rejected: Would block all child interactions
 
+### Decision 7: Element-Specific Selection Rules
+
+**Choice:** Define clear selection behavior for each element type, with special handling for edge cases.
+
+**Selection Rules:**
+- **Tables**: Select individual cell (not entire table) - users can drag handles to extend
+- **Images**: No selection menu - images have no text content
+- **Links**: Select display text only - preserve tap-for-navigation behavior
+- **Nested elements**: Select innermost block element - more intuitive for users
+- **Inline elements**: Select containing paragraph - inline granularity too fine
+- **Non-content elements**: No selection - horizontal rules, empty space ignored
+
+**Rationale:**
+- Innermost-element rule prevents unintended large selections
+- Cell-level table selection provides finer control
+- Image exclusion avoids semantic mismatch (no text to select)
+- Link display-text selection maintains consistency with paragraph behavior
+
+**Alternatives Considered:**
+- **A. Outermost-element selection for nested structures**
+  - Rejected: Long press on list item in blockquote would select entire blockquote - unintuitive
+- **B. Entire-table selection**
+  - Rejected: Tables can be large; cell-level gives more control
+- **C. Link text + URL selection**
+  - Rejected: Users rarely need URL in plain text copy
+
 ## Architecture
 
 ### Component Structure
