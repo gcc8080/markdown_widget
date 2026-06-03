@@ -1,29 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../config/custom_selection_config.dart';
 import 'element_context.dart';
 import 'menu/menu_overlay.dart';
 
 /// Wrapper widget that provides custom selection functionality for markdown elements
 class CustomSelectableWrapper extends StatefulWidget {
-  /// The child widget to wrap
   final Widget child;
-
-  /// The text span to render
-  final InlineSpan textSpan;
-
-  /// Element context information
+  final TextSpan textSpan;
   final ElementContext elementContext;
-
-  /// Custom selection configuration
   final CustomSelectionConfig config;
-
-  /// Text style for the content
   final TextStyle? textStyle;
-
-  /// Text align
   final TextAlign textAlign;
-
-  /// Text direction
   final TextDirection? textDirection;
 
   const CustomSelectableWrapper({
@@ -38,54 +26,77 @@ class CustomSelectableWrapper extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<CustomSelectableWrapper> createState() => _CustomSelectableWrapperState();
+  State<CustomSelectableWrapper> createState() =>
+      _CustomSelectableWrapperState();
 }
 
-class _CustomSelectableWrapperState extends State<CustomSelectableWrapper> {
-  /// Current selection mode (static or selectable)
+class _CustomSelectableWrapperState extends State<CustomSelectableWrapper>
+    with WidgetsBindingObserver {
   bool _isSelectableMode = false;
-
-  /// Current selection range
   TextSelection? _currentSelection;
-
-  /// Whether user is currently dragging selection handles
   bool _isDragging = false;
-
-  /// Overlay entry for menu
+  bool _isScrolling = false;
   OverlayEntry? _menuOverlay;
-
-  /// Global position of long press
   Offset? _longPressPosition;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _removeMenu();
     super.dispose();
   }
 
   @override
+  void didChangeMetrics() {
+    // Reposition menu on device rotation or keyboard appearance
+    if (_menuOverlay != null) {
+      _removeMenu();
+      if (_isSelectableMode && _currentSelection != null && !_isDragging) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showCopyMenu();
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 200),
-      child: _isSelectableMode
-          ? _buildSelectableMode()
-          : _buildStaticMode(),
+    // Listen for scroll notifications to hide/show menu
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification is ScrollStartNotification) {
+          _onScrollStart();
+        } else if (notification is ScrollEndNotification) {
+          _onScrollEnd();
+        }
+        return false; // don't absorb the notification
+      },
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 150),
+        child: _isSelectableMode ? _buildSelectableMode() : _buildStaticMode(),
+      ),
     );
   }
 
-  /// Build static mode (non-selectable with long press detection)
   Widget _buildStaticMode() {
     return GestureDetector(
+      key: const ValueKey('static'),
       behavior: HitTestBehavior.translucent,
       onLongPressStart: _handleLongPressStart,
       child: widget.child,
     );
   }
 
-  /// Build selectable mode (with text selection)
   Widget _buildSelectableMode() {
     return SelectableText.rich(
       widget.textSpan,
+      key: const ValueKey('selectable'),
       style: widget.textStyle,
       textAlign: widget.textAlign,
       textDirection: widget.textDirection,
@@ -93,16 +104,13 @@ class _CustomSelectableWrapperState extends State<CustomSelectableWrapper> {
     );
   }
 
-  /// Handle long press start
   void _handleLongPressStart(LongPressStartDetails details) {
     _longPressPosition = details.globalPosition;
     _showInitialMenu(details.globalPosition);
   }
 
-  /// Show initial menu with "Select Text" and other options
   void _showInitialMenu(Offset position) {
     _removeMenu();
-
     _menuOverlay = OverlayEntry(
       builder: (context) => MenuOverlay(
         position: position,
@@ -111,23 +119,17 @@ class _CustomSelectableWrapperState extends State<CustomSelectableWrapper> {
         isInitialMenu: true,
         onSelectText: _handleSelectText,
         onCopy: () => _handleCopy(widget.elementContext.plainText),
-        onDismiss: _removeMenu,
+        onDismiss: _clearAll,
       ),
     );
-
     Overlay.of(context).insert(_menuOverlay!);
   }
 
-  /// Show copy menu after selection
   void _showCopyMenu() {
-    if (_currentSelection == null || _isDragging) return;
-
+    if (!_isSelectableMode || _isDragging || _isScrolling) return;
     _removeMenu();
 
-    // Calculate position above selection
-    // For now, use approximate position
     final position = _longPressPosition ?? Offset.zero;
-
     _menuOverlay = OverlayEntry(
       builder: (context) => MenuOverlay(
         position: position,
@@ -138,22 +140,19 @@ class _CustomSelectableWrapperState extends State<CustomSelectableWrapper> {
         ),
         isInitialMenu: false,
         onCopy: () => _handleCopy(_getSelectedText()),
-        onDismiss: _removeMenu,
+        onDismiss: _clearAll,
       ),
     );
-
     Overlay.of(context).insert(_menuOverlay!);
   }
 
-  /// Handle "Select Text" action
   void _handleSelectText() {
-    setState(() {
-      _isSelectableMode = true;
-      _removeMenu();
-    });
+    _removeMenu();
+    setState(() => _isSelectableMode = true);
 
-    // Auto-select entire element content after mode switch
+    // Select entire element content after mode switch
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       setState(() {
         _currentSelection = TextSelection(
           baseOffset: 0,
@@ -164,59 +163,67 @@ class _CustomSelectableWrapperState extends State<CustomSelectableWrapper> {
     });
   }
 
-  /// Handle selection changes
-  void _handleSelectionChanged(TextSelection selection, SelectionChangedCause? cause) {
+  void _handleSelectionChanged(
+      TextSelection selection, SelectionChangedCause? cause) {
     final wasDragging = _isDragging;
     _isDragging = cause == SelectionChangedCause.drag;
+    setState(() => _currentSelection = selection);
 
-    setState(() {
-      _currentSelection = selection;
-    });
-
-    // Hide menu while dragging
     if (_isDragging && !wasDragging) {
       _removeMenu();
+    } else if (!_isDragging && wasDragging) {
+      if (selection.isValid && !selection.isCollapsed) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted && !_isDragging) _showCopyMenu();
+        });
+      }
     }
+  }
 
-    // Show menu after drag ends
-    if (!_isDragging && wasDragging && selection.isValid && !selection.isCollapsed) {
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (mounted && !_isDragging) {
-          _showCopyMenu();
-        }
+  Future<void> _handleCopy(String text) async {
+    if (text.isNotEmpty) {
+      await Clipboard.setData(ClipboardData(text: text));
+    }
+    _clearAll();
+  }
+
+  void _onScrollStart() {
+    _isScrolling = true;
+    _removeMenu(); // hide menu while scrolling, preserve selection
+  }
+
+  void _onScrollEnd() {
+    _isScrolling = false;
+    // Reshow menu if still in selectable mode with a valid selection
+    if (_isSelectableMode &&
+        _currentSelection != null &&
+        _currentSelection!.isValid &&
+        !_currentSelection!.isCollapsed) {
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (mounted && !_isDragging && !_isScrolling) _showCopyMenu();
       });
     }
   }
 
-  /// Handle copy action
-  void _handleCopy(String text) {
-    // Copy to clipboard
-    // Note: Actual clipboard implementation will be added later
-    _removeMenu();
-
-    // Clear selection and return to static mode
-    setState(() {
-      _isSelectableMode = false;
-      _currentSelection = null;
-    });
-  }
-
-  /// Get currently selected text
-  String _getSelectedText() {
-    if (_currentSelection == null || !_currentSelection!.isValid) {
-      return '';
-    }
-
-    final text = widget.elementContext.plainText;
-    return text.substring(
-      _currentSelection!.baseOffset,
-      _currentSelection!.extentOffset,
-    );
-  }
-
-  /// Remove menu overlay
   void _removeMenu() {
     _menuOverlay?.remove();
     _menuOverlay = null;
+  }
+
+  void _clearAll() {
+    _removeMenu();
+    setState(() {
+      _isSelectableMode = false;
+      _currentSelection = null;
+      _isDragging = false;
+    });
+  }
+
+  String _getSelectedText() {
+    if (_currentSelection == null || !_currentSelection!.isValid) return '';
+    final text = widget.elementContext.plainText;
+    final start = _currentSelection!.start.clamp(0, text.length);
+    final end = _currentSelection!.end.clamp(0, text.length);
+    return start < end ? text.substring(start, end) : '';
   }
 }

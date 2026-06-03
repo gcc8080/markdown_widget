@@ -97,36 +97,36 @@
 
 ## 6. Selection Control Integration
 
-- [ ] 6.1 Integrate SelectableText
+- [x] 6.1 Integrate SelectableText
   - Replace Text.rich with SelectableText.rich in selectable mode
   - Configure selection parameter for initial full selection
-- [ ] 6.2 Implement selection change callbacks
+- [x] 6.2 Implement selection change callbacks
   - Add onSelectionChanged handler
   - Detect drag start/end via SelectionChangedCause
   - Show/hide menu based on drag state
-- [ ] 6.3 Implement outside tap detection
+- [x] 6.3 Implement outside tap detection
   - Add GestureDetector for tap detection
   - Calculate selection bounds using TextPainter.getBoxesForSelection
   - Clear selection on outside tap
-- [ ] 6.4 Implement inside tap handling
+- [x] 6.4 Implement inside tap handling
   - Re-show menu when tapping inside selection
   - Maintain selection state
 
 ## 7. Element Integration
 
-- [ ] 7.1 Modify MarkdownGenerator
+- [x] 7.1 Modify MarkdownGenerator
   - Add optional custom selection context parameter
   - Conditionally wrap elements with CustomSelectableWrapper
   - Pass element metadata to wrapper
-- [ ] 7.2 Modify MarkdownWidget
+- [x] 7.2 Modify MarkdownWidget
   - Add enableCustomSelection parameter
   - Add customSelectionConfig parameter
   - Pass config to MarkdownGenerator
   - Export new public APIs
-- [ ] 7.3 Implement element type detection
+- [x] 7.3 Implement element type detection
   - Add logic to determine element type from SpanNode
   - Pass element type to ElementContext
-- [ ] 7.4 Implement element-specific selection rules
+- [x] 7.4 Implement element-specific selection rules
   - Add table cell selection logic
   - Add image element exclusion logic
   - Add link display text selection logic
@@ -136,46 +136,46 @@
 
 ## 8. Extension API
 
-- [ ] 8.1 Implement ElementContextAction typedef
+- [x] 8.x Implement ElementContextAction typedef
   - Define callback signature for context-aware actions
-- [ ] 8.2 Implement custom item context injection
+- [x] 8.x Implement custom item context injection
   - Create closure that captures ElementContext
   - Pass context to custom item callbacks
-- [ ] 8.3 Implement MenuExtension configuration
+- [x] 8.x Implement MenuExtension configuration
   - Add support for items list
   - Add support for position specification
-- [ ] 8.4 Implement built-in item hiding
+- [x] 8.x Implement built-in item hiding
   - Add hiddenBuiltInItems processing
   - Skip hidden items in menu building
 
 ## 9. Boundary and Position Handling
 
-- [ ] 9.1 Implement finger position capture
+- [x] 9.x Implement finger position capture
   - Capture LongPressStartDetails.globalPosition
   - Pass to menu positioning
-- [ ] 9.2 Implement selection rect calculation
+- [x] 9.x Implement selection rect calculation
   - Use TextPainter.getBoxesForSelection
   - Convert to global coordinates
-- [ ] 9.3 Implement boundary detection
+- [x] 9.x Implement boundary detection
   - Check menu against screen edges
   - Handle top edge case
   - Handle bottom edge case
   - Handle left/right edge cases
-- [ ] 9.4 Implement position adjustment
+- [x] 9.x Implement position adjustment
   - Shift menu down if near top
   - Shift menu up if near bottom
   - Shift horizontally if near edges
 
 ## 10. Scroll and Lifecycle
 
-- [ ] 10.1 Implement selection persistence during scroll
+- [x] 10.1 Implement selection persistence during scroll
   - Ensure selection state survives scroll
   - Ensure handles remain visible
-- [ ] 10.2 Implement WidgetsBindingObserver
+- [x] 10.2 Implement WidgetsBindingObserver
   - Add didChangeMetrics handler
   - Reposition menu on device rotation
   - Handle keyboard appearance/disappearance
-- [ ] 10.3 Implement cleanup
+- [x] 10.3 Implement cleanup
   - Remove overlay in dispose
   - Remove animation controller in dispose
   - Remove observer in dispose

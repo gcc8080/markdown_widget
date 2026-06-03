@@ -6,6 +6,8 @@ import 'package:markdown_widget/markdown_widget.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
+import '../config/custom_selection_config.dart';
+
 class MarkdownWidget extends StatefulWidget {
   ///the markdown data
   final String data;
@@ -31,6 +33,12 @@ class MarkdownWidget extends StatefulWidget {
   ///config for [MarkdownGenerator]
   final MarkdownGenerator? markdownGenerator;
 
+  /// Enable custom selection mode
+  final bool enableCustomSelection;
+
+  /// Config for custom selection mode
+  final CustomSelectionConfig? customSelectionConfig;
+
   const MarkdownWidget({
     Key? key,
     required this.data,
@@ -41,6 +49,8 @@ class MarkdownWidget extends StatefulWidget {
     this.padding,
     this.config,
     this.markdownGenerator,
+    this.enableCustomSelection = false,
+    this.customSelectionConfig,
   }) : super(key: key);
 
   @override
@@ -80,12 +90,17 @@ class _MarkdownWidgetState extends State<MarkdownWidget> {
   void updateState() {
     indexTreeSet.clear();
     markdownGenerator = widget.markdownGenerator ?? MarkdownGenerator();
+    final effectiveConfig = widget.enableCustomSelection
+        ? (widget.customSelectionConfig ??
+            const CustomSelectionConfig(enabled: true))
+        : null;
     final result = markdownGenerator.buildWidgets(
       widget.data,
       onTocList: (tocList) {
         _tocController?.setTocList(tocList);
       },
       config: widget.config,
+      customSelectionConfig: effectiveConfig,
     );
     _widgets.addAll(result);
   }
@@ -125,7 +140,7 @@ class _MarkdownWidgetState extends State<MarkdownWidget> {
         padding: widget.padding,
       ),
     );
-    return widget.selectable
+    return widget.selectable && !widget.enableCustomSelection
         ? SelectionArea(child: markdownWidget)
         : markdownWidget;
   }
@@ -169,6 +184,6 @@ Widget wrapByAutoScroll(
     controller: controller,
     index: index,
     child: child,
-    highlightColor: Colors.black.withOpacity(0.1),
+    highlightColor: Colors.black.withValues(alpha: 0.1),
   );
 }

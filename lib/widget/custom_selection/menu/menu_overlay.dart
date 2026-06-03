@@ -173,7 +173,7 @@ class _MenuOverlayState extends State<MenuOverlay>
             border: widget.config.menuStyle.border,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withValues(alpha: 0.2),
                 blurRadius: widget.config.menuStyle.elevation ?? 8,
                 offset: const Offset(0, 2),
               ),
