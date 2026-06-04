@@ -3,9 +3,14 @@ import '../span_node.dart';
 
 /// Utility to detect markdown element types and extract content
 class ElementTypeDetector {
-  /// Determine the element type string from a SpanNode
+  /// Determine the element type string from a SpanNode.
+  ///
+  /// Top-level spans produced by [WidgetVisitor] are [ConcreteElementNode]
+  /// wrappers whose real typed node (HeadingNode, CodeBlockNode, ...) is their
+  /// first child. We unwrap these wrappers before matching on the class name.
   static String detectType(SpanNode node) {
-    final typeName = node.runtimeType.toString();
+    final effective = _unwrap(node);
+    final typeName = effective.runtimeType.toString();
 
     // Map node class names to friendly element types
     if (typeName.contains('Heading')) return 'heading';
@@ -22,6 +27,16 @@ class ElementTypeDetector {
     if (typeName.contains('Code')) return 'inlineCode';
 
     return 'unknown';
+  }
+
+  /// Unwraps a [ConcreteElementNode] wrapper to its first meaningful child.
+  /// The visitor wraps every top-level markdown node in an empty
+  /// [ConcreteElementNode]; the actual typed node is that wrapper's child.
+  static SpanNode _unwrap(SpanNode node) {
+    if (node is ConcreteElementNode && node.children.isNotEmpty) {
+      return node.children.first;
+    }
+    return node;
   }
 
   /// Extract plain text from an InlineSpan

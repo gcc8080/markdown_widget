@@ -148,7 +148,7 @@ class _CustomSelectableWrapperState extends State<CustomSelectableWrapper>
     });
   }
 
-  /// "选取文字": select exactly this element's content via its global rect.
+  /// "选取文字": select this element's content.
   void _handleSelectText() {
     _removeMenu();
     _inSelectionPhase = true;
@@ -159,90 +159,90 @@ class _CustomSelectableWrapperState extends State<CustomSelectableWrapper>
     const max = 8;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_menuIsActive) return;
-      final rect = _targetParagraphRect();
-      if (rect != null && _region != null) {
-        // Inset slightly so the edge points land on real glyphs, not the
-        // paragraph's bounding-box border.
-        final start = rect.topLeft + const Offset(1, 1);
-        final end = rect.bottomRight - const Offset(1, 1);
-        _region!.selectRange(start, end);
-        // selectRange is synchronous; onSelectionChanged fires next frame.
-        // _onSelectionChanged will show the copy menu when the notifier updates.
+      if (_region != null && _applyElementSelection()) {
+        // Selection dispatched; onSelectionChanged fires next frame and
+        // _onSelectionChanged shows the copy menu.
         return;
       }
-      // rect not ready yet — retry next frame
       if (attempt < max) {
         _selectElementWithRetry(attempt + 1);
       }
     });
   }
 
-  /// Returns the global rect of the [RenderParagraph] the user long-pressed.
+  /// Selects the pressed element in the shared region. Returns false if the
+  /// render tree isn't ready yet (caller retries).
   ///
-  /// We select at paragraph granularity rather than the wrapper's outer render
-  /// box. This is what makes element-scoped selection correct:
-  /// - heading: picks the text paragraph, not the divider below it
-  /// - list: picks only the tapped list item, not the whole list column
-  /// - blockquote / table: picks the inner text, excluding the decoration
-  ///   margin that would otherwise overshoot into the element above
-  /// - table cell: picks just that cell's paragraph
-  ///
-  /// Falls back to the largest paragraph in the element if the press position
-  /// can't be matched (e.g. menu re-show after rotation).
-  Rect? _targetParagraphRect() {
-    final ctx = _contentKey.currentContext;
-    final root = ctx?.findRenderObject();
-    if (root is! RenderBox || !root.hasSize) return null;
+  /// Strategy by element type:
+  /// - code block / blockquote → "container" elements whose content may span
+  ///   several RenderParagraphs (one per code line, or multiple quote
+  ///   paragraphs). We select the whole element with a plain coordinate
+  ///   [selectRange] from the first paragraph's top to the last's bottom. Using
+  ///   the inner paragraph rects (not the margin-inflated outer box) keeps the
+  ///   range from bleeding into the block above.
+  /// - everything else (heading, paragraph, list item, table cell) is a single
+  ///   logical paragraph → [selectParagraphAt] its center, which selects
+  ///   exactly that paragraph without the upward bleed a coordinate range
+  ///   causes for short targets.
+  bool _applyElementSelection() {
+    final paragraphs = _textParagraphRects();
+    if (paragraphs.isEmpty) return false;
+    paragraphs.sort((a, b) => a.top.compareTo(b.top));
 
-    final paragraphs = <RenderParagraph>[];
-    void visit(RenderObject node) {
-      if (node is RenderParagraph) paragraphs.add(node);
-      node.visitChildren(visit);
+    final type = widget.elementContext.elementType;
+    if (type == 'codeBlock' || type == 'blockquote') {
+      _region!.selectRange(
+        paragraphs.first.topLeft + const Offset(1, 1),
+        paragraphs.last.bottomRight - const Offset(1, 1),
+      );
+      return true;
     }
 
-    visit(root);
-
-    // Keep only paragraphs that hold real text. Container paragraphs that just
-    // host a WidgetSpan render as the object-replacement char (U+FFFC); those
-    // are the outer list/heading/quote boxes we must NOT select as a whole.
-    bool hasRealText(RenderParagraph p) {
-      final t = p.text.toPlainText().replaceAll('￼', '').trim();
-      return t.isNotEmpty;
-    }
-
-    final textParagraphs = paragraphs.where(hasRealText).toList();
-    if (textParagraphs.isEmpty) {
-      final tl = root.localToGlobal(Offset.zero);
-      return tl & root.size;
-    }
-
-    Rect rectOf(RenderParagraph p) {
-      final tl = p.localToGlobal(Offset.zero);
-      return tl & p.size;
-    }
-
-    // Among paragraphs containing the long-press point, pick the innermost
-    // (smallest area) — that's the specific list item / cell / line tapped.
+    // Choose the paragraph to select: the one under the long-press point if
+    // any, else the first. Select at that paragraph's center so the point is
+    // guaranteed to land on real glyphs (not padding / a bbox edge).
     final press = _longPressPosition;
+    Rect target = paragraphs.first;
     if (press != null) {
-      RenderParagraph? best;
       double bestArea = double.infinity;
-      for (final p in textParagraphs) {
-        final r = rectOf(p);
+      for (final r in paragraphs) {
         if (r.contains(press)) {
           final area = r.width * r.height;
           if (area < bestArea) {
             bestArea = area;
-            best = p;
+            target = r;
           }
         }
       }
-      if (best != null) return rectOf(best);
+    }
+    _region!.selectParagraphAt(target.center);
+    return true;
+  }
+
+  /// Global rects of every real-text [RenderParagraph] in this element.
+  ///
+  /// Container paragraphs that only host a WidgetSpan render as the
+  /// object-replacement char (U+FFFC); those outer boxes are excluded so we
+  /// operate on actual text lines.
+  List<Rect> _textParagraphRects() {
+    final ctx = _contentKey.currentContext;
+    final root = ctx?.findRenderObject();
+    if (root is! RenderBox || !root.hasSize) return const [];
+
+    final rects = <Rect>[];
+    void visit(RenderObject node) {
+      if (node is RenderParagraph) {
+        final text = node.text.toPlainText().replaceAll('￼', '').trim();
+        if (text.isNotEmpty) {
+          final tl = node.localToGlobal(Offset.zero);
+          rects.add(tl & node.size);
+        }
+      }
+      node.visitChildren(visit);
     }
 
-    // Fallback: the tallest text paragraph (the main content block).
-    textParagraphs.sort((a, b) => b.size.height.compareTo(a.size.height));
-    return rectOf(textParagraphs.first);
+    visit(root);
+    return rects;
   }
 
   Future<void> _handleCopy(String text) async {

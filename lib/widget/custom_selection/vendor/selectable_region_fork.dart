@@ -1627,6 +1627,49 @@ class MdSelectableRegionState extends State<MdSelectableRegion> with TextSelecti
     _updateSelectedContentIfNeeded();
   }
 
+  /// Selects the paragraph (text boundary) under [globalPosition] and shows
+  /// draggable handles.
+  ///
+  /// Unlike [selectRange], this dispatches a single [SelectParagraphSelectionEvent]
+  /// which selects exactly the paragraph at the point — it does not span into
+  /// adjacent block selectables. Added for markdown_widget custom selection so
+  /// long-pressing a heading / list item / quote / table cell selects only that
+  /// element, after which the user can drag the handles to extend across nodes.
+  void selectParagraphAt(Offset globalPosition) {
+    clearSelection();
+    _selectable?.dispatchSelectionEvent(
+        SelectParagraphSelectionEvent(globalPosition: globalPosition));
+    _showHandles();
+    _updateSelectedContentIfNeeded();
+  }
+
+  /// Selects an element's full content from [start] (top) to [end] (bottom)
+  /// without bleeding into the block above.
+  ///
+  /// Plain coordinate range selection ([selectRange]) is unreliable here:
+  /// `forStart` at the element's top edge can resolve to the previous block's
+  /// selectable, producing a contiguous range that starts in the element above.
+  ///
+  /// This method first anchors the start edge using a [SelectParagraphSelectionEvent]
+  /// at [start] — which selects the paragraph *at that point* and cannot bleed
+  /// upward — then extends the end edge down to [end] with a
+  /// [SelectionEdgeUpdateEvent.forEnd]. The combination covers all lines of a
+  /// multi-line block (code, multi-paragraph quote) while staying scoped to the
+  /// element the user pressed.
+  void selectRangeViaAnchor(Offset start, Offset end) {
+    clearSelection();
+    // Anchor: selects the paragraph at `start`, establishing both
+    // currentSelectionStartIndex and currentSelectionEndIndex on the correct
+    // element (no upward bleed).
+    _selectable?.dispatchSelectionEvent(
+        SelectParagraphSelectionEvent(globalPosition: start));
+    // Extend the end edge downward to cover the rest of the element.
+    _selectable?.dispatchSelectionEvent(
+        SelectionEdgeUpdateEvent.forEnd(globalPosition: end));
+    _showHandles();
+    _updateSelectedContentIfNeeded();
+  }
+
   @Deprecated(
     'Use `contextMenuBuilder` instead. '
     'This feature was deprecated after v3.3.0-0.5.pre.',

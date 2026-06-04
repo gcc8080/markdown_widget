@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:markdown/markdown.dart' as m;
 import 'package:markdown_widget/markdown_widget.dart';
 import 'package:markdown_widget/widget/custom_selection/element_context.dart';
 import 'package:markdown_widget/widget/custom_selection/element_type_detector.dart';
@@ -102,6 +103,26 @@ void main() {
     test('detectType maps text node to unknown', () {
       final node = TextNode(text: 'abc');
       expect(ElementTypeDetector.detectType(node), 'unknown');
+    });
+
+    test('detectType unwraps ConcreteElementNode to its child type', () {
+      // Top-level spans from the visitor are ConcreteElementNode wrappers
+      // whose real typed node is the first child.
+      const md = '# H\n\npara\n\n```dart\nx\n```\n\n> q\n\n- a\n\n| A |\n|---|\n| 1 |';
+      final doc = m.Document(
+          extensionSet: m.ExtensionSet.gitHubFlavored, encodeHtml: false);
+      final nodes =
+          doc.parseLines(md.split(RegExp(r'(\r?\n)|(\r?\t)|(\r)')));
+      final spans = WidgetVisitor().visit(nodes);
+      final types = spans.map(ElementTypeDetector.detectType).toList();
+      expect(types, containsAll(<String>[
+        'heading',
+        'paragraph',
+        'codeBlock',
+        'blockquote',
+        'list',
+        'table',
+      ]));
     });
   });
 
@@ -306,6 +327,84 @@ void main() {
       expect(copied!.contains('Second item'), isTrue);
       expect(copied!.contains('First item'), isFalse);
       expect(copied!.contains('Third item'), isFalse);
+    });
+
+    testWidgets('element selection is scoped and complete per type',
+        (tester) async {
+      String? copied;
+      const md = '''
+```dart
+// line 1
+void main() {}
+```
+
+## 引用示例
+
+> Line one.
+> Line two.
+
+| A | B |
+|---|---|
+| 11 | 22 |
+''';
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            height: 3000,
+            child: MarkdownWidget(
+              data: md,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              enableCustomSelection: true,
+              customSelectionConfig: CustomSelectionConfig(
+                enabled: true,
+                extension: MenuExtension(items: [
+                  CustomMenuItem.withContext(
+                    label: 'Grab',
+                    onContextTap: (c) => copied = c.selectedText,
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      Future<String?> grab(Finder f) async {
+        copied = null;
+        await tester.longPress(f.first);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 250));
+        await tester.tap(find.text('选取文字'));
+        for (var i = 0; i < 12; i++) {
+          await tester.pump(const Duration(milliseconds: 30));
+        }
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
+        await tester.tap(find.text('Grab'));
+        await tester.pump();
+        return copied;
+      }
+
+      // Code block: whole block, all lines.
+      final code = await grab(find.textContaining('void main', findRichText: true));
+      expect(code, contains('// line 1'));
+      expect(code, contains('void main() {}'));
+
+      // Heading after a code block: only the heading, no upward bleed.
+      final heading = await grab(find.text('引用示例', findRichText: true));
+      expect(heading, '引用示例');
+
+      // Blockquote: whole quote, both lines, no bleed into code above.
+      final quote = await grab(find.textContaining('Line one', findRichText: true));
+      expect(quote, contains('Line one.'));
+      expect(quote, contains('Line two.'));
+      expect(quote, isNot(contains('void main')));
+
+      // Table cell: only the pressed cell.
+      final cell = await grab(find.text('11', findRichText: true));
+      expect(cell, '11');
     });
   });
 }
