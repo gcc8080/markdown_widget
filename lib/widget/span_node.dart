@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'selection/selection_config.dart';
+
 ///the basic node
 abstract class SpanNode {
   InlineSpan build();
@@ -11,6 +13,26 @@ abstract class SpanNode {
   TextStyle? get parentStyle => _parent?.style;
 
   SpanNode? get parent => _parent;
+
+  String get plainText => '';
+
+  String get markdownTag => '';
+
+  MarkdownSelectionTargetType get selectionTargetType =>
+      MarkdownSelectionTargetType.unknown;
+
+  bool get canSelectText => plainText.trim().isNotEmpty;
+
+  List<String> get parentTags {
+    final result = <String>[];
+    SpanNode? current = parent;
+    while (current != null) {
+      final tag = current.markdownTag;
+      if (tag.isNotEmpty) result.add(tag);
+      current = current.parent;
+    }
+    return result;
+  }
 
   ///use [_acceptParent] to accept a parent
   void _acceptParent(SpanNode node) {
@@ -38,6 +60,9 @@ abstract class ElementNode extends SpanNode {
   TextSpan get childrenSpan => TextSpan(
       children:
           List.generate(children.length, (index) => children[index].build()));
+
+  @override
+  String get plainText => children.map((e) => e.plainText).join();
 }
 
 ///the default concrete node for ElementNode
@@ -50,6 +75,9 @@ class ConcreteElementNode extends ElementNode {
 
   @override
   InlineSpan build() => childrenSpan;
+
+  @override
+  String get markdownTag => tag;
 }
 
 ///text node only displays text
@@ -61,4 +89,7 @@ class TextNode extends SpanNode {
 
   @override
   InlineSpan build() => TextSpan(text: text, style: style.merge(parentStyle));
+
+  @override
+  String get plainText => text;
 }

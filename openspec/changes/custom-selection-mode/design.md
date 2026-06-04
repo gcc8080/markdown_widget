@@ -156,8 +156,8 @@ Copy uses the current adjusted selection and writes rendered plain text to the c
 
 Rollback is straightforward: callers can remove `selectionConfig` to return to the existing `SelectionArea` behavior.
 
-## Open Questions
+## Deferred Decisions
 
-- Whether a later release should add the same configuration to `MarkdownBlock`.
-- Whether desktop right-click and Web browser context-menu integration should use the same builders or platform-specific builders.
-- Whether a later release should support rich clipboard formats or original Markdown source slices.
+- A later release will add the same custom selection configuration to `MarkdownBlock`.
+- A later release will add desktop right-click and Web browser context-menu integration; that work will decide whether to reuse the current builders or introduce platform-specific builders.
+- A later release will add rich clipboard formats or original Markdown source slice copying.

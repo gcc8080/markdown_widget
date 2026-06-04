@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/configs.dart';
+import '../../selection/selection_config.dart';
 import '../../span_node.dart';
 
 ///Tag: [MarkdownTag.a]
@@ -44,6 +45,13 @@ class LinkNode extends ElementNode {
   @override
   TextStyle get style =>
       parentStyle?.merge(linkConfig.style) ?? linkConfig.style;
+
+  @override
+  String get markdownTag => MarkdownTag.a.name;
+
+  @override
+  MarkdownSelectionTargetType get selectionTargetType =>
+      MarkdownSelectionTargetType.inline;
 }
 
 ///config class for link, tag: a

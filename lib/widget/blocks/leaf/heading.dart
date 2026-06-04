@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../config/configs.dart';
 import '../../proxy_rich_text.dart';
+import '../../selection/selection_config.dart';
 import '../../span_node.dart';
 import '../../widget_visitor.dart';
 
@@ -20,20 +21,22 @@ class HeadingNode extends ElementNode {
     final divider = headingConfig.divider;
     if (divider == null) return childrenSpan;
     return WidgetSpan(
-      child: Padding(
-        padding: headingConfig.padding,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            ProxyRichText(
-              childrenSpan,
-              richTextBuilder: visitor.richTextBuilder,
+      child: visitor.wrapSelectionTarget(
+          Padding(
+            padding: headingConfig.padding,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                ProxyRichText(
+                  childrenSpan,
+                  richTextBuilder: visitor.richTextBuilder,
+                ),
+                _Divider(divider: divider.copy(color: parentStyle?.color)),
+              ],
             ),
-            _Divider(divider: divider.copy(color: parentStyle?.color)),
-          ],
-        ),
-      ),
+          ),
+          this),
     );
   }
 
@@ -47,6 +50,13 @@ class HeadingNode extends ElementNode {
 
   @override
   TextStyle get style => headingConfig.style.merge(parentStyle);
+
+  @override
+  String get markdownTag => headingConfig.tag;
+
+  @override
+  MarkdownSelectionTargetType get selectionTargetType =>
+      MarkdownSelectionTargetType.heading;
 }
 
 ///divider widget

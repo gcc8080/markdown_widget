@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:markdown/markdown.dart' as m;
 
 import '../widget/blocks/leaf/heading.dart';
+import '../widget/selection/selection_config.dart';
 import '../widget/span_node.dart';
 import '../widget/widget_visitor.dart';
 import 'configs.dart';
@@ -33,8 +34,12 @@ class MarkdownGenerator {
 
   ///convert [data] to widgets
   ///[onTocList] can provider [Toc] list
-  List<Widget> buildWidgets(String data,
-      {ValueCallback<List<Toc>>? onTocList, MarkdownConfig? config}) {
+  List<Widget> buildWidgets(
+    String data, {
+    ValueCallback<List<Toc>>? onTocList,
+    MarkdownConfig? config,
+    MarkdownSelectionTargetBuilder? selectionTargetBuilder,
+  }) {
     final mdConfig = config ?? MarkdownConfig.defaultConfig;
     final m.Document document = m.Document(
       extensionSet: extensionSet ?? m.ExtensionSet.gitHubFlavored,
@@ -49,6 +54,7 @@ class MarkdownGenerator {
         config: mdConfig,
         generators: generators,
         textGenerator: textGenerator,
+        selectionTargetBuilder: selectionTargetBuilder,
         onNodeAccepted: (node, index) {
           onNodeAccepted?.call(node, index);
           if (node is HeadingNode) {
@@ -60,10 +66,26 @@ class MarkdownGenerator {
     final spans = visitor.visit(nodes);
     onTocList?.call(tocList);
     final List<Widget> widgets = [];
-    spans.forEach((span) {
+    spans.asMap().forEach((index, span) {
       final textSpan = spanNodeBuilder?.call(span) ?? span.build();
       final richText = richTextBuilder?.call(textSpan) ?? Text.rich(textSpan);
-      widgets.add(Padding(padding: linesMargin, child: richText));
+      Widget child = richText;
+      if (selectionTargetBuilder != null) {
+        final targetNode =
+            span is ConcreteElementNode && span.children.length == 1
+                ? span.children.first
+                : span;
+        final target = MarkdownSelectionTarget(
+          id: 'markdown-selection-block-$index',
+          type: targetNode.selectionTargetType,
+          tag: targetNode.markdownTag,
+          plainText: targetNode.plainText,
+          parentTags: targetNode.parentTags,
+          canSelectText: targetNode.canSelectText,
+        );
+        child = selectionTargetBuilder(child, target);
+      }
+      widgets.add(Padding(padding: linesMargin, child: child));
     });
     return widgets;
   }

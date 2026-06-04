@@ -43,8 +43,8 @@ class _HtmlPageState extends State<HtmlPage> {
                 refresh();
               },
               style: ButtonStyle(
-                  backgroundColor: MaterialStateProperty.all(
-                      Colors.lightBlue.withOpacity(0.2))),
+                  backgroundColor: WidgetStateProperty.all(
+                      Colors.lightBlue.withValues(alpha: 0.2))),
               icon: Icon(isMobileDisplaying
                   ? Icons.arrow_back_ios
                   : Icons.document_scanner),
@@ -95,7 +95,8 @@ class _HtmlPageState extends State<HtmlPage> {
               generators: [videoGeneratorWithTag],
               textGenerator: (node, config, visitor) =>
                   CustomTextNode(node.textContent, config, visitor),
-              richTextBuilder: (span) => Text.rich(span, textScaleFactor: 1),
+              richTextBuilder: (span) =>
+                  Text.rich(span, textScaler: TextScaler.noScaling),
             ),
           );
         });

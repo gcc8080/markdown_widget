@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../config/configs.dart';
+import '../selection/selection_config.dart';
 import '../span_node.dart';
 
 ///Tag:  [MarkdownTag.code]
@@ -17,6 +18,16 @@ class CodeNode extends ElementNode {
 
   @override
   TextStyle get style => codeConfig.style.merge(parentStyle);
+
+  @override
+  String get plainText => text;
+
+  @override
+  String get markdownTag => MarkdownTag.code.name;
+
+  @override
+  MarkdownSelectionTargetType get selectionTargetType =>
+      MarkdownSelectionTargetType.inline;
 }
 
 ///config class for code, tag: code

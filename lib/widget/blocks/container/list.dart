@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../config/configs.dart';
 import '../../inlines/input.dart';
 import '../../proxy_rich_text.dart';
+import '../../selection/selection_config.dart';
 import '../../span_node.dart';
 import '../../widget_visitor.dart';
 import '../leaf/paragraph.dart';
@@ -53,6 +54,12 @@ class UlOrOLNode extends ElementNode {
 
   @override
   TextStyle? get style => parentStyle;
+
+  @override
+  String get markdownTag => tag;
+
+  @override
+  bool get canSelectText => false;
 }
 
 ///Tag [MarkdownTag.li]
@@ -91,46 +98,59 @@ class ListNode extends ElementNode {
     final parentStyleHeight =
         (parentStyle?.fontSize ?? config.p.textStyle.fontSize ?? 16.0) *
             (parentStyle?.height ?? config.p.textStyle.height ?? 1.2);
+    final contentChildren = isCheckbox ? children.skip(1).toList() : children;
     Widget marker;
     if (isCheckbox) {
+      final checkboxNode = children.first;
       marker = ProxyRichText(
-        children.removeAt(0).build(),
+        checkboxNode.build(),
         richTextBuilder: visitor.richTextBuilder,
+      );
+      marker = visitor.wrapSelectionTarget(
+        marker,
+        checkboxNode,
+        type: MarkdownSelectionTargetType.checkbox,
+        canSelectText: false,
       );
     } else {
       marker = config.li.marker?.call(isOrdered, depth, index) ??
           getDefaultMarker(isOrdered, depth, parentStyle?.color, index,
               parentStyleHeight / 2, config);
     }
-    return WidgetSpan(
-      child: Padding(
-        padding: EdgeInsets.only(bottom: marginBottom),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: space,
-              child: marker,
-            ),
-            Flexible(
-              child: ProxyRichText(
-                TextSpan(
-                  children: [
-                    if (children.isNotEmpty) children.first.build(),
-                    for (final child in children.skip(1)) ...[
-                      // Introducing a new line before the next list item.
-                      // Otherwise, it might be rendered on the same line, disrupting the layout.
-                      if (child is UlOrOLNode) const TextSpan(text: '\n'),
-                      child.build(),
-                    ],
+    final item = Padding(
+      padding: EdgeInsets.only(bottom: marginBottom),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: space,
+            child: marker,
+          ),
+          Flexible(
+            child: ProxyRichText(
+              TextSpan(
+                children: [
+                  if (contentChildren.isNotEmpty) contentChildren.first.build(),
+                  for (final child in contentChildren.skip(1)) ...[
+                    // Introducing a new line before the next list item.
+                    // Otherwise, it might be rendered on the same line, disrupting the layout.
+                    if (child is UlOrOLNode) const TextSpan(text: '\n'),
+                    child.build(),
                   ],
-                ),
-                richTextBuilder: visitor.richTextBuilder,
+                ],
               ),
+              richTextBuilder: visitor.richTextBuilder,
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+    return WidgetSpan(
+      child: visitor.wrapSelectionTarget(
+        item,
+        this,
+        plainText: directPlainText,
       ),
     );
   }
@@ -141,6 +161,25 @@ class ListNode extends ElementNode {
 
   @override
   TextStyle? get style => parentStyle;
+
+  String get directPlainText {
+    final buffer = StringBuffer();
+    for (final child in children) {
+      if (child is InputNode || child is UlOrOLNode) continue;
+      buffer.write(child.plainText);
+    }
+    return buffer.toString();
+  }
+
+  @override
+  String get plainText => directPlainText;
+
+  @override
+  String get markdownTag => MarkdownTag.li.name;
+
+  @override
+  MarkdownSelectionTargetType get selectionTargetType =>
+      MarkdownSelectionTargetType.listItem;
 }
 
 ///config class for list, tag: li
@@ -225,7 +264,7 @@ class _OlMarker extends StatelessWidget {
     return SelectionContainer.disabled(
         child: Text('${index + 1}.',
             style: config.textStyle.copyWith(color: color),
-            textScaleFactor: 1.0));
+            textScaler: TextScaler.noScaling));
   }
 }
 

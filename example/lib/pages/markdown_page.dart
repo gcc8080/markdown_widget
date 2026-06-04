@@ -112,7 +112,7 @@ class _MarkdownPageState extends State<MarkdownPage> {
                   textGenerator: (node, config, visitor) =>
                       CustomTextNode(node.textContent, config, visitor),
                   richTextBuilder: (span) =>
-                      Text.rich(span, textScaleFactor: 1),
+                      Text.rich(span, textScaler: TextScaler.noScaling),
                 ));
           }),
     );

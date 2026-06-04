@@ -34,12 +34,18 @@ class WidgetVisitor implements m.NodeVisitor {
   ///use [richTextBuilder] to custom your own [Text.rich]
   final RichTextBuilder? richTextBuilder;
 
+  ///wrap selectable semantic units when custom selection mode is enabled
+  final MarkdownSelectionTargetBuilder? selectionTargetBuilder;
+
+  int _selectionTargetIndex = 0;
+
   WidgetVisitor({
     MarkdownConfig? config,
     this.generators = const [],
     this.onNodeAccepted,
     this.textGenerator,
     this.richTextBuilder,
+    this.selectionTargetBuilder,
   }) {
     this.config = config ?? MarkdownConfig.defaultConfig;
     generators.forEach((e) {
@@ -51,6 +57,7 @@ class WidgetVisitor implements m.NodeVisitor {
   List<SpanNode> visit(List<m.Node> nodes) {
     _spans.clear();
     _currentSpanIndex = 0;
+    _selectionTargetIndex = 0;
     for (final node in nodes) {
       final emptyNode = ConcreteElementNode();
       _spans.add(emptyNode);
@@ -143,6 +150,30 @@ class WidgetVisitor implements m.NodeVisitor {
     return _tag2node[element.tag]?.call(element, config, this) ??
         textGenerator?.call(element, config, this) ??
         TextNode(text: element.textContent);
+  }
+
+  Widget wrapSelectionTarget(
+    Widget child,
+    SpanNode node, {
+    MarkdownSelectionTargetType? type,
+    String? tag,
+    String? plainText,
+    bool? canSelectText,
+    Map<String, Object?> metadata = const {},
+  }) {
+    final builder = selectionTargetBuilder;
+    if (builder == null) return child;
+    final text = plainText ?? node.plainText;
+    final target = MarkdownSelectionTarget(
+      id: 'markdown-selection-${_selectionTargetIndex++}',
+      type: type ?? node.selectionTargetType,
+      tag: tag ?? node.markdownTag,
+      plainText: text,
+      parentTags: node.parentTags,
+      canSelectText: canSelectText ?? node.canSelectText,
+      metadata: metadata,
+    );
+    return builder(child, target);
   }
 }
 

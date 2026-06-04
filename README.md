@@ -135,6 +135,75 @@ Cross-platform support for Select All and Copy function.
 
 ![image](https://user-images.githubusercontent.com/30992818/226107076-f32a919e-9a0c-4138-8a0b-266c6337e0af.png)
 
+## ✋Custom selection mode
+
+`MarkdownWidget` also supports an opt-in two-stage selection flow. When
+`selectionConfig` is not provided, the existing `SelectionArea` behavior is
+preserved. When `selectable` is `false`, both native selection and custom
+selection are disabled.
+
+```dart
+MarkdownWidget(
+  data: data,
+  selectionConfig: MarkdownSelectionConfig(
+    initialMenuActions: [
+      MarkdownSelectionMenuAction(
+        id: 'favorite',
+        label: 'Favorite',
+        onPressed: (context) {
+          context.dismiss();
+        },
+      ),
+    ],
+    selectedTextMenuActions: [
+      MarkdownSelectionMenuAction(
+        id: 'explain',
+        label: 'Explain',
+        onPressed: (context) {
+          final selectedText = context.selectedText;
+          context.clearSelection();
+          // Use selectedText.
+        },
+      ),
+    ],
+    initialMenuBuilder: (context, menuContext) {
+      return Row(
+        children: menuContext.allActions
+            .map((action) => TextButton(
+                  onPressed: () => action.onPressed(menuContext),
+                  child: Text(action.label),
+                ))
+            .toList(),
+      );
+    },
+  ),
+);
+```
+
+Interaction rules:
+
+- Long press opens the initial custom menu first and does not immediately select
+  text.
+- Text-bearing targets receive the built-in `Select text` / `选取文字` action.
+  Menu builders may hide or reorder that action.
+- Text-free targets such as images, horizontal rules, and task-list checkbox
+  controls do not expose `Select text`. If no application action remains, no
+  menu is shown.
+- After `Select text`, the initial range is the nearest semantic Markdown unit:
+  heading, paragraph, current table cell, current list item direct text, nearest
+  block quote, or full code block.
+- Link taps keep the existing link behavior. Link long press opens the custom
+  menu first.
+- Scrolling hides the selected-text menu but keeps the selection. Tapping inside
+  the active range reopens the selected-text menu; tapping outside clears the
+  selection.
+- Copy and selected-text actions clear the menu, handles, and selection before
+  the action callback continues.
+
+The first release targets Android and iOS touch long-press flows for
+`MarkdownWidget`. `MarkdownBlock`, desktop right-click/Web browser context menu
+integration, and rich Markdown-source clipboard formats are deferred.
+
 ## 🌐Html tag
 
 As the current package only implements the conversion of Markdown tags, it does not support the conversion of HTML tags by default. However, this functionality can be supported through extension. You can refer to the usage in [html_support.dart](https://github.com/asjqkkkk/markdown_widget/blob/dev/example/lib/markdown_custom/html_support.dart) for more details.

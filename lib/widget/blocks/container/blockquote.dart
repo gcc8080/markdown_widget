@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../config/configs.dart';
 import '../../proxy_rich_text.dart';
+import '../../selection/selection_config.dart';
 import '../../span_node.dart';
 import '../../widget_visitor.dart';
 
@@ -18,21 +19,31 @@ class BlockquoteNode extends ElementNode {
   @override
   InlineSpan build() {
     return WidgetSpan(
-        child: Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-          border: Border(
-        left: BorderSide(color: config.sideColor, width: config.sideWith),
-      )),
-      padding: config.padding,
-      margin: config.margin,
-      child:
-          ProxyRichText(childrenSpan, richTextBuilder: visitor.richTextBuilder),
-    ));
+        child: visitor.wrapSelectionTarget(
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                  border: Border(
+                left:
+                    BorderSide(color: config.sideColor, width: config.sideWith),
+              )),
+              padding: config.padding,
+              margin: config.margin,
+              child: ProxyRichText(childrenSpan,
+                  richTextBuilder: visitor.richTextBuilder),
+            ),
+            this));
   }
 
   @override
   TextStyle? get style => TextStyle(color: config.textColor).merge(parentStyle);
+
+  @override
+  String get markdownTag => MarkdownTag.blockquote.name;
+
+  @override
+  MarkdownSelectionTargetType get selectionTargetType =>
+      MarkdownSelectionTargetType.blockquote;
 }
 
 ///config class for Block quotes, tag: blockquote

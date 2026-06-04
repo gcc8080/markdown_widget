@@ -31,6 +31,9 @@ class MarkdownWidget extends StatefulWidget {
   ///config for [MarkdownGenerator]
   final MarkdownGenerator? markdownGenerator;
 
+  ///config for opt-in custom selection mode
+  final MarkdownSelectionConfig? selectionConfig;
+
   const MarkdownWidget({
     Key? key,
     required this.data,
@@ -41,6 +44,7 @@ class MarkdownWidget extends StatefulWidget {
     this.padding,
     this.config,
     this.markdownGenerator,
+    this.selectionConfig,
   }) : super(key: key);
 
   @override
@@ -86,6 +90,13 @@ class _MarkdownWidgetState extends State<MarkdownWidget> {
         _tocController?.setTocList(tocList);
       },
       config: widget.config,
+      selectionTargetBuilder:
+          widget.selectable && widget.selectionConfig != null
+              ? (child, target) => MarkdownSelectionTargetWidget(
+                    target: target,
+                    child: child,
+                  )
+              : null,
     );
     _widgets.addAll(result);
   }
@@ -125,9 +136,15 @@ class _MarkdownWidgetState extends State<MarkdownWidget> {
         padding: widget.padding,
       ),
     );
-    return widget.selectable
-        ? SelectionArea(child: markdownWidget)
-        : markdownWidget;
+    if (!widget.selectable) return markdownWidget;
+    final selectionConfig = widget.selectionConfig;
+    if (selectionConfig == null) {
+      return SelectionArea(child: markdownWidget);
+    }
+    return MarkdownCustomSelectionArea(
+      config: selectionConfig,
+      child: markdownWidget,
+    );
   }
 
   ///wrap widget by [VisibilityDetector] that can know if [child] is visible
@@ -169,6 +186,6 @@ Widget wrapByAutoScroll(
     controller: controller,
     index: index,
     child: child,
-    highlightColor: Colors.black.withOpacity(0.1),
+    highlightColor: Colors.black.withValues(alpha: 0.1),
   );
 }

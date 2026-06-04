@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../config/configs.dart';
 import '../../proxy_rich_text.dart';
+import '../../selection/selection_config.dart';
 import '../../span_node.dart';
 import '../../widget_visitor.dart';
 
@@ -81,6 +82,12 @@ class TableNode extends ElementNode {
     return WidgetSpan(
         child: config.table.wrapper?.call(tableWidget) ?? tableWidget);
   }
+
+  @override
+  String get markdownTag => MarkdownTag.table.name;
+
+  @override
+  bool get canSelectText => false;
 }
 
 class THeadNode extends ElementNode {
@@ -95,13 +102,19 @@ class THeadNode extends ElementNode {
             decoration: config.table.headerRowDecoration,
             children: List.generate(trChild.children.length, (index) {
               final currentTh = trChild.children[index];
-              return Center(
+              final cell = Center(
                 child: Padding(
                     padding: config.table.headPadding,
                     child: ProxyRichText(
                       currentTh.build(),
                       richTextBuilder: visitor.richTextBuilder,
                     )),
+              );
+              return visitor.wrapSelectionTarget(
+                cell,
+                currentTh,
+                type: MarkdownSelectionTargetType.tableCell,
+                tag: MarkdownTag.th.name,
               );
             }));
       });
@@ -113,6 +126,9 @@ class THeadNode extends ElementNode {
       config.table.headerStyle?.merge(parentStyle) ??
       parentStyle ??
       config.p.textStyle.copyWith(fontWeight: FontWeight.bold);
+
+  @override
+  String get markdownTag => MarkdownTag.thead.name;
 }
 
 class TBodyNode extends ElementNode {
@@ -128,12 +144,18 @@ class TBodyNode extends ElementNode {
           List.generate(cellCount, (index) => Container());
       for (var i = 0; i < child.children.length; ++i) {
         var c = child.children[i];
-        widgets[i] = Padding(
+        final cell = Padding(
             padding: config.table.bodyPadding,
             child: ProxyRichText(
               c.build(),
               richTextBuilder: visitor.richTextBuilder,
             ));
+        widgets[i] = visitor.wrapSelectionTarget(
+          cell,
+          c,
+          type: MarkdownSelectionTargetType.tableCell,
+          tag: MarkdownTag.td.name,
+        );
       }
       return TableRow(
           decoration: config.table.bodyRowDecoration, children: widgets);
@@ -145,16 +167,29 @@ class TBodyNode extends ElementNode {
       config.table.headerStyle?.merge(parentStyle) ??
       parentStyle ??
       config.p.textStyle;
+
+  @override
+  String get markdownTag => MarkdownTag.tbody.name;
 }
 
 class TrNode extends ElementNode {
   @override
   TextStyle? get style => parentStyle;
+
+  @override
+  String get markdownTag => MarkdownTag.tr.name;
 }
 
 class ThNode extends ElementNode {
   @override
   TextStyle? get style => parentStyle;
+
+  @override
+  String get markdownTag => MarkdownTag.th.name;
+
+  @override
+  MarkdownSelectionTargetType get selectionTargetType =>
+      MarkdownSelectionTargetType.tableCell;
 }
 
 class TdNode extends ElementNode {
@@ -197,4 +232,11 @@ class TdNode extends ElementNode {
 
   @override
   TextStyle? get style => parentStyle;
+
+  @override
+  String get markdownTag => MarkdownTag.td.name;
+
+  @override
+  MarkdownSelectionTargetType get selectionTargetType =>
+      MarkdownSelectionTargetType.tableCell;
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../config/configs.dart';
+import '../../selection/selection_config.dart';
 import '../../span_node.dart';
 
 ///Tag: [MarkdownTag.p]
@@ -22,6 +23,13 @@ class ParagraphNode extends ElementNode {
 
   @override
   TextStyle? get style => pConfig.textStyle.merge(parentStyle);
+
+  @override
+  String get markdownTag => MarkdownTag.p.name;
+
+  @override
+  MarkdownSelectionTargetType get selectionTargetType =>
+      MarkdownSelectionTargetType.paragraph;
 }
 
 ///config class for paragraphs, tag: p
@@ -43,6 +51,13 @@ class PConfig implements LeafConfig {
 ///double '~'swill be wrapped with an HTML <del> tag.
 class DelNode extends ElementNode {
   @override
+  String get markdownTag => MarkdownTag.del.name;
+
+  @override
+  MarkdownSelectionTargetType get selectionTargetType =>
+      MarkdownSelectionTargetType.inline;
+
+  @override
   TextStyle get style =>
       parentStyle?.merge(_defaultDelStyle) ?? _defaultDelStyle;
 }
@@ -52,6 +67,13 @@ class DelNode extends ElementNode {
 /// double '*'s or '_'s will be wrapped with an HTML <strong> tag.
 class StrongNode extends ElementNode {
   @override
+  String get markdownTag => MarkdownTag.strong.name;
+
+  @override
+  MarkdownSelectionTargetType get selectionTargetType =>
+      MarkdownSelectionTargetType.inline;
+
+  @override
   TextStyle get style =>
       parentStyle?.merge(_defaultStrongStyle) ?? _defaultStrongStyle;
 }
@@ -60,6 +82,13 @@ class StrongNode extends ElementNode {
 ///
 /// emphasis, Markdown treats asterisks (*) and underscores (_) as indicators of emphasis
 class EmNode extends ElementNode {
+  @override
+  String get markdownTag => MarkdownTag.em.name;
+
+  @override
+  MarkdownSelectionTargetType get selectionTargetType =>
+      MarkdownSelectionTargetType.inline;
+
   @override
   TextStyle get style => parentStyle?.merge(_defaultEmStyle) ?? _defaultEmStyle;
 }
@@ -72,6 +101,12 @@ class BrNode extends SpanNode {
   InlineSpan build() {
     return TextSpan(text: '\n', style: parentStyle);
   }
+
+  @override
+  String get plainText => '\n';
+
+  @override
+  String get markdownTag => MarkdownTag.br.name;
 }
 
 ///see [DelNode]

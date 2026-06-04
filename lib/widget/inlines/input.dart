@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../config/configs.dart';
+import '../selection/selection_config.dart';
 import '../span_node.dart';
 
 ///Tag: [MarkdownTag.input]
@@ -28,6 +29,16 @@ class InputNode extends SpanNode {
           ),
     );
   }
+
+  @override
+  String get markdownTag => MarkdownTag.input.name;
+
+  @override
+  MarkdownSelectionTargetType get selectionTargetType =>
+      MarkdownSelectionTargetType.checkbox;
+
+  @override
+  bool get canSelectText => false;
 }
 
 ///define a function to return a checkbox widget

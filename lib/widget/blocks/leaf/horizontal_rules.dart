@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../config/configs.dart';
+import '../../selection/selection_config.dart';
 import '../../span_node.dart';
 
 ///Tag: [MarkdownTag.hr]
@@ -21,6 +22,16 @@ class HrNode extends SpanNode {
       color: hrConfig.color,
     ));
   }
+
+  @override
+  String get markdownTag => MarkdownTag.hr.name;
+
+  @override
+  MarkdownSelectionTargetType get selectionTargetType =>
+      MarkdownSelectionTargetType.horizontalRule;
+
+  @override
+  bool get canSelectText => false;
 }
 
 ///config class for [HrNode]

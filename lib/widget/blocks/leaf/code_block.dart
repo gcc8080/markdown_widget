@@ -32,7 +32,9 @@ class CodeBlockNode extends ElementNode {
     if (splitContents.last.isEmpty) splitContents.removeLast();
     final codeBuilder = preConfig.builder;
     if (codeBuilder != null)
-      return WidgetSpan(child: codeBuilder.call(content, language));
+      return WidgetSpan(
+          child: visitor.wrapSelectionTarget(
+              codeBuilder.call(content, language), this));
     final widget = Container(
       decoration: preConfig.decoration,
       margin: preConfig.margin,
@@ -61,11 +63,23 @@ class CodeBlockNode extends ElementNode {
       ),
     );
     return WidgetSpan(
-        child: preConfig.wrapper?.call(widget, content, language) ?? widget);
+        child: visitor.wrapSelectionTarget(
+            preConfig.wrapper?.call(widget, content, language) ?? widget,
+            this));
   }
 
   @override
   TextStyle get style => preConfig.textStyle.merge(parentStyle);
+
+  @override
+  String get plainText => content;
+
+  @override
+  String get markdownTag => MarkdownTag.pre.name;
+
+  @override
+  MarkdownSelectionTargetType get selectionTargetType =>
+      MarkdownSelectionTargetType.codeBlock;
 }
 
 ///transform code to highlight code

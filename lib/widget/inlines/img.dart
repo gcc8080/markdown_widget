@@ -42,7 +42,13 @@ class ImageNode extends SpanNode {
             );
           });
     return WidgetSpan(
-        child: imgConfig.builder?.call(imageUrl, attributes) ?? result);
+        child: visitor.wrapSelectionTarget(
+      imgConfig.builder?.call(imageUrl, attributes) ?? result,
+      this,
+      plainText: alt,
+      canSelectText: false,
+      metadata: {'url': imageUrl, 'alt': alt},
+    ));
   }
 
   Widget buildErrorImage(String url, String alt, Object? error) {
@@ -66,6 +72,19 @@ class ImageNode extends SpanNode {
     Navigator.of(context).push(PageRouteBuilder(
         opaque: false, pageBuilder: (_, __, ___) => ImageViewer(child: child)));
   }
+
+  @override
+  String get plainText => attributes['alt'] ?? '';
+
+  @override
+  String get markdownTag => MarkdownTag.img.name;
+
+  @override
+  MarkdownSelectionTargetType get selectionTargetType =>
+      MarkdownSelectionTargetType.image;
+
+  @override
+  bool get canSelectText => false;
 }
 
 ///config class for image, tag: img
@@ -94,7 +113,7 @@ class ImageViewer extends StatelessWidget {
     return GestureDetector(
       onTap: () => Navigator.of(context).pop(),
       child: Scaffold(
-        backgroundColor: Colors.black.withOpacity(0.3),
+        backgroundColor: Colors.black.withValues(alpha: 0.3),
         body: Stack(
           fit: StackFit.expand,
           children: [
@@ -114,7 +133,7 @@ class ImageViewer extends StatelessWidget {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         shape: BoxShape.circle),
                   ),
                 ),

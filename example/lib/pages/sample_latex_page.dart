@@ -42,8 +42,8 @@ class _LatexPageState extends State<LatexPage> {
                 refresh();
               },
               style: ButtonStyle(
-                  backgroundColor: MaterialStateProperty.all(
-                      Colors.lightBlue.withOpacity(0.2))),
+                  backgroundColor: WidgetStateProperty.all(
+                      Colors.lightBlue.withValues(alpha: 0.2))),
               icon: Icon(isMobileDisplaying
                   ? Icons.arrow_back_ios
                   : Icons.document_scanner),
@@ -93,7 +93,8 @@ class _LatexPageState extends State<LatexPage> {
             markdownGenerator: MarkdownGenerator(
               generators: [latexGenerator],
               inlineSyntaxList: [LatexSyntax()],
-              richTextBuilder: (span) => Text.rich(span, textScaleFactor: 1),
+              richTextBuilder: (span) =>
+                  Text.rich(span, textScaler: TextScaler.noScaling),
             ),
           );
         });
