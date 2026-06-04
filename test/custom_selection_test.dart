@@ -4,6 +4,7 @@ import 'package:markdown_widget/markdown_widget.dart';
 import 'package:markdown_widget/widget/custom_selection/element_context.dart';
 import 'package:markdown_widget/widget/custom_selection/element_type_detector.dart';
 import 'package:markdown_widget/widget/custom_selection/custom_selectable_wrapper.dart';
+import 'package:markdown_widget/widget/custom_selection/vendor/selectable_region_fork.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 void main() {
@@ -104,54 +105,46 @@ void main() {
     });
   });
 
-  group('CustomSelectableWrapper widget', () {
-    testWidgets('renders child in static mode initially', (tester) async {
-      const ctx = ElementContext(
-        index: 0,
-        elementType: 'paragraph',
-        plainText: 'Long press me',
-        fullMarkdown: 'Long press me',
-      );
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: CustomSelectableWrapper(
-            textSpan: const TextSpan(text: 'Long press me'),
-            elementContext: ctx,
-            config: const CustomSelectionConfig(enabled: true),
-            child: const Text('Long press me'),
-          ),
-        ),
-      ));
-      expect(find.text('Long press me'), findsOneWidget);
-      // Static mode uses GestureDetector
-      expect(find.byType(GestureDetector), findsWidgets);
+  group('CustomSelectableWrapper widget (via MarkdownWidget)', () {
+    setUp(() {
+      VisibilityDetectorController.instance.updateInterval = Duration.zero;
     });
 
-    testWidgets('long press shows initial menu', (tester) async {
-      const ctx = ElementContext(
-        index: 0,
-        elementType: 'paragraph',
-        plainText: 'Press here',
-        fullMarkdown: 'Press here',
-      );
+    testWidgets('renders content and wraps elements with GestureDetector',
+        (tester) async {
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(
-          body: Center(
-            child: CustomSelectableWrapper(
-              textSpan: const TextSpan(text: 'Press here'),
-              elementContext: ctx,
-              config: const CustomSelectionConfig(enabled: true),
-              child: const Text('Press here'),
-            ),
+          body: MarkdownWidget(
+            data: 'Long press me',
+            enableCustomSelection: true,
+            customSelectionConfig: const CustomSelectionConfig(enabled: true),
           ),
         ),
       ));
+      await tester.pump();
+      expect(find.text('Long press me'), findsOneWidget);
+      expect(find.byType(CustomSelectableWrapper), findsWidgets);
+      // Custom mode uses the forked MdSelectableRegion (not Flutter SelectionArea).
+      expect(find.byType(MdSelectableRegion), findsOneWidget);
+      expect(find.byType(SelectionArea), findsNothing);
+    });
+
+    testWidgets('long press shows initial menu with 选取文字', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: MarkdownWidget(
+            data: 'Press here',
+            enableCustomSelection: true,
+            customSelectionConfig: const CustomSelectionConfig(enabled: true),
+          ),
+        ),
+      ));
+      await tester.pump();
 
       await tester.longPress(find.text('Press here'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 250));
 
-      // The initial menu should contain "选取文字"
       expect(find.text('选取文字'), findsOneWidget);
     });
   });
@@ -187,6 +180,132 @@ void main() {
       await tester.pump();
       expect(find.byType(CustomSelectableWrapper), findsNothing);
       expect(find.byType(SelectionArea), findsOneWidget);
+    });
+
+    testWidgets('tapping 选取文字 dismisses initial menu and enters selection phase',
+        (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: MarkdownWidget(
+            data: 'First paragraph here.\n\nSecond paragraph here.',
+            enableCustomSelection: true,
+            customSelectionConfig: const CustomSelectionConfig(enabled: true),
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      await tester.longPress(find.text('Second paragraph here.'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(find.text('选取文字'), findsOneWidget);
+      expect(find.byType(MdSelectableRegion), findsOneWidget);
+
+      // Tap "选取文字" → initial menu should be gone; no clearSelection race.
+      await tester.tap(find.text('选取文字'));
+      await tester.pump();
+
+      expect(find.text('选取文字'), findsNothing);
+    });
+
+    testWidgets('copy menu appears when selectedTextNotifier fires after 选取文字',
+        (tester) async {
+      final notifier = ValueNotifier<String>('');
+      final regionKey = GlobalKey<MdSelectableRegionState>();
+      const ctx = ElementContext(
+        index: 0,
+        elementType: 'paragraph',
+        plainText: 'Hello world',
+        fullMarkdown: 'Hello world',
+      );
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: MdSelectableRegion(
+            key: regionKey,
+            focusNode: FocusNode(),
+            selectionControls: materialTextSelectionHandleControls,
+            contextMenuBuilder: (_, __) => const SizedBox.shrink(),
+            child: CustomSelectableWrapper(
+              elementContext: ctx,
+              config: const CustomSelectionConfig(enabled: true),
+              regionKey: regionKey,
+              selectedTextNotifier: notifier,
+              child: const Text('Hello world'),
+            ),
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      // Long press → initial menu
+      await tester.longPress(find.text('Hello world'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(find.text('选取文字'), findsOneWidget);
+
+      // Tap "选取文字" — enters selection phase
+      await tester.tap(find.text('选取文字'));
+      await tester.pump();
+
+      // Simulate selectRange producing a selection by updating the notifier directly
+      notifier.value = 'Hello world';
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+
+      expect(find.text('复制'), findsOneWidget);
+
+      notifier.dispose();
+    });
+
+    testWidgets('long-press second list item selects only that item',
+        (tester) async {
+      String? copied;
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: MarkdownWidget(
+            data: '- First item\n- Second item\n- Third item',
+            enableCustomSelection: true,
+            customSelectionConfig: CustomSelectionConfig(
+              enabled: true,
+              extension: MenuExtension(
+                items: [
+                  CustomMenuItem.withContext(
+                    label: 'Grab',
+                    onContextTap: (ctx) => copied = ctx.selectedText,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      // Long press the second item, then 选取文字.
+      await tester.longPress(find.text('Second item', findRichText: true));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(find.text('选取文字'), findsOneWidget);
+
+      await tester.tap(find.text('选取文字'));
+      for (var i = 0; i < 12; i++) {
+        await tester.pump(const Duration(milliseconds: 30));
+      }
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+
+      // Copy menu visible → tap our custom item to capture selection.
+      expect(find.text('Grab'), findsOneWidget);
+      await tester.tap(find.text('Grab'));
+      await tester.pump();
+
+      // Only the second item's text should be selected, not the whole list.
+      expect(copied, isNotNull);
+      expect(copied!.contains('Second item'), isTrue);
+      expect(copied!.contains('First item'), isFalse);
+      expect(copied!.contains('Third item'), isFalse);
     });
   });
 }

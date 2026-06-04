@@ -5,6 +5,7 @@ import '../widget/blocks/leaf/heading.dart';
 import '../widget/custom_selection/custom_selectable_wrapper.dart';
 import '../widget/custom_selection/element_context.dart';
 import '../widget/custom_selection/element_type_detector.dart';
+import '../widget/custom_selection/vendor/selectable_region_fork.dart';
 import '../widget/span_node.dart';
 import '../widget/widget_visitor.dart';
 import 'configs.dart';
@@ -37,11 +38,13 @@ class MarkdownGenerator {
 
   ///convert [data] to widgets
   ///[onTocList] can provider [Toc] list
-  ///[customSelectionConfig] enables custom selection mode per element
+  ///[customSelectionConfig] enables custom selection mode
   List<Widget> buildWidgets(String data,
       {ValueCallback<List<Toc>>? onTocList,
       MarkdownConfig? config,
-      CustomSelectionConfig? customSelectionConfig}) {
+      CustomSelectionConfig? customSelectionConfig,
+      GlobalKey<MdSelectableRegionState>? regionKey,
+      ValueNotifier<String>? selectedTextNotifier}) {
     final mdConfig = config ?? MarkdownConfig.defaultConfig;
     final m.Document document = m.Document(
       extensionSet: extensionSet ?? m.ExtensionSet.gitHubFlavored,
@@ -67,23 +70,22 @@ class MarkdownGenerator {
     final spans = visitor.visit(nodes);
     onTocList?.call(tocList);
     final List<Widget> widgets = [];
+    final useCustomSelection = customSelectionConfig != null &&
+        customSelectionConfig.enabled &&
+        regionKey != null &&
+        selectedTextNotifier != null;
     for (var i = 0; i < spans.length; i++) {
       final span = spans[i];
       final builtSpan = spanNodeBuilder?.call(span) ?? span.build();
       final richText = richTextBuilder?.call(builtSpan) ?? Text.rich(builtSpan);
       final paddedWidget = Padding(padding: linesMargin, child: richText);
 
-      if (customSelectionConfig != null && customSelectionConfig.enabled) {
+      if (useCustomSelection) {
         final elementType = ElementTypeDetector.detectType(span);
-        // Skip non-selectable elements (images, horizontal rules)
         if (!ElementTypeDetector.isSelectable(elementType)) {
           widgets.add(paddedWidget);
           continue;
         }
-        // Need a TextSpan for CustomSelectableWrapper
-        final textSpan = builtSpan is TextSpan
-            ? builtSpan
-            : TextSpan(children: [builtSpan]);
         final plainText = ElementTypeDetector.extractPlainText(builtSpan);
         final elementContext = ElementContext(
           index: i,
@@ -95,9 +97,10 @@ class MarkdownGenerator {
           padding: linesMargin,
           child: CustomSelectableWrapper(
             child: richText,
-            textSpan: textSpan,
             elementContext: elementContext,
             config: customSelectionConfig,
+            regionKey: regionKey,
+            selectedTextNotifier: selectedTextNotifier,
           ),
         ));
       } else {

@@ -1,28 +1,33 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter/services.dart';
 import '../../config/custom_selection_config.dart';
 import 'element_context.dart';
 import 'menu/menu_overlay.dart';
+import 'vendor/selectable_region_fork.dart';
 
-/// Wrapper widget that provides custom selection functionality for markdown elements
+/// Wraps a single markdown element with custom long-press selection behavior.
+///
+/// All elements share the single [MdSelectableRegionState] from the outer
+/// region, so selection can cross element boundaries by dragging. On
+/// "select text", the wrapper computes its own global rect and calls
+/// [MdSelectableRegionState.selectRange] to select exactly this element,
+/// after which the user can drag the native handles to extend across nodes.
 class CustomSelectableWrapper extends StatefulWidget {
   final Widget child;
-  final TextSpan textSpan;
   final ElementContext elementContext;
   final CustomSelectionConfig config;
-  final TextStyle? textStyle;
-  final TextAlign textAlign;
-  final TextDirection? textDirection;
+  final GlobalKey<MdSelectableRegionState> regionKey;
+  final ValueNotifier<String> selectedTextNotifier;
 
   const CustomSelectableWrapper({
     Key? key,
     required this.child,
-    required this.textSpan,
     required this.elementContext,
     required this.config,
-    this.textStyle,
-    this.textAlign = TextAlign.start,
-    this.textDirection,
+    required this.regionKey,
+    required this.selectedTextNotifier,
   }) : super(key: key);
 
   @override
@@ -32,80 +37,71 @@ class CustomSelectableWrapper extends StatefulWidget {
 
 class _CustomSelectableWrapperState extends State<CustomSelectableWrapper>
     with WidgetsBindingObserver {
-  bool _isSelectableMode = false;
-  TextSelection? _currentSelection;
-  bool _isDragging = false;
-  bool _isScrolling = false;
+  final GlobalKey _contentKey = GlobalKey();
   OverlayEntry? _menuOverlay;
   Offset? _longPressPosition;
+  Timer? _menuTimer;
+  bool _menuIsActive = false;
+  /// True after the user tapped "选取文字" — only then should onSelectionChanged drive the menu.
+  bool _inSelectionPhase = false;
+
+  MdSelectableRegionState? get _region => widget.regionKey.currentState;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    widget.selectedTextNotifier.addListener(_onSelectionChanged);
   }
 
   @override
   void dispose() {
+    widget.selectedTextNotifier.removeListener(_onSelectionChanged);
     WidgetsBinding.instance.removeObserver(this);
+    _menuTimer?.cancel();
     _removeMenu();
     super.dispose();
   }
 
   @override
   void didChangeMetrics() {
-    // Reposition menu on device rotation or keyboard appearance
     if (_menuOverlay != null) {
       _removeMenu();
-      if (_isSelectableMode && _currentSelection != null && !_isDragging) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _showCopyMenu();
-        });
-      }
+      _scheduleShowCopyMenu();
     }
+  }
+
+  void _onSelectionChanged() {
+    // Only respond after the user tapped "选取文字"; ignore the clearSelection()
+    // that fires right after long-press to reset the auto-selected word.
+    if (!_menuIsActive || !_inSelectionPhase) return;
+    final text = widget.selectedTextNotifier.value;
+    if (text.isEmpty) {
+      _removeMenu();
+      return;
+    }
+    _menuTimer?.cancel();
+    _removeMenu();
+    _menuTimer = Timer(const Duration(milliseconds: 250), () {
+      if (mounted && _menuIsActive) _showCopyMenu(text);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    // Listen for scroll notifications to hide/show menu
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) {
-        if (notification is ScrollStartNotification) {
-          _onScrollStart();
-        } else if (notification is ScrollEndNotification) {
-          _onScrollEnd();
-        }
-        return false; // don't absorb the notification
-      },
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 150),
-        child: _isSelectableMode ? _buildSelectableMode() : _buildStaticMode(),
-      ),
-    );
-  }
-
-  Widget _buildStaticMode() {
     return GestureDetector(
-      key: const ValueKey('static'),
       behavior: HitTestBehavior.translucent,
       onLongPressStart: _handleLongPressStart,
-      child: widget.child,
-    );
-  }
-
-  Widget _buildSelectableMode() {
-    return SelectableText.rich(
-      widget.textSpan,
-      key: const ValueKey('selectable'),
-      style: widget.textStyle,
-      textAlign: widget.textAlign,
-      textDirection: widget.textDirection,
-      onSelectionChanged: _handleSelectionChanged,
+      child: KeyedSubtree(key: _contentKey, child: widget.child),
     );
   }
 
   void _handleLongPressStart(LongPressStartDetails details) {
+    _menuIsActive = true;
     _longPressPosition = details.globalPosition;
+    // The region's own long-press toolbar is suppressed via contextMenuBuilder,
+    // so the auto-selected word is invisible. We leave it in place and let
+    // selectRange() replace it when the user taps "选取文字".
     _showInitialMenu(details.globalPosition);
   }
 
@@ -125,83 +121,134 @@ class _CustomSelectableWrapperState extends State<CustomSelectableWrapper>
     Overlay.of(context).insert(_menuOverlay!);
   }
 
-  void _showCopyMenu() {
-    if (!_isSelectableMode || _isDragging || _isScrolling) return;
+  void _showCopyMenu(String selectedText) {
     _removeMenu();
-
     final position = _longPressPosition ?? Offset.zero;
     _menuOverlay = OverlayEntry(
       builder: (context) => MenuOverlay(
         position: position,
         config: widget.config,
-        elementContext: widget.elementContext.copyWith(
-          selection: _currentSelection,
-          selectedText: _getSelectedText(),
-        ),
+        elementContext:
+            widget.elementContext.copyWith(selectedText: selectedText),
         isInitialMenu: false,
-        onCopy: () => _handleCopy(_getSelectedText()),
+        onCopy: () => _handleCopy(selectedText),
         onDismiss: _clearAll,
       ),
     );
     Overlay.of(context).insert(_menuOverlay!);
   }
 
-  void _handleSelectText() {
-    _removeMenu();
-    setState(() => _isSelectableMode = true);
-
-    // Select entire element content after mode switch
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      setState(() {
-        _currentSelection = TextSelection(
-          baseOffset: 0,
-          extentOffset: widget.elementContext.plainText.length,
-        );
-      });
-      _showCopyMenu();
+  void _scheduleShowCopyMenu() {
+    _menuTimer?.cancel();
+    _menuTimer = Timer(const Duration(milliseconds: 100), () {
+      if (mounted && _menuIsActive) {
+        final text = widget.selectedTextNotifier.value;
+        if (text.isNotEmpty) _showCopyMenu(text);
+      }
     });
   }
 
-  void _handleSelectionChanged(
-      TextSelection selection, SelectionChangedCause? cause) {
-    final wasDragging = _isDragging;
-    _isDragging = cause == SelectionChangedCause.drag;
-    setState(() => _currentSelection = selection);
+  /// "选取文字": select exactly this element's content via its global rect.
+  void _handleSelectText() {
+    _removeMenu();
+    _inSelectionPhase = true;
+    _selectElementWithRetry(0);
+  }
 
-    if (_isDragging && !wasDragging) {
-      _removeMenu();
-    } else if (!_isDragging && wasDragging) {
-      if (selection.isValid && !selection.isCollapsed) {
-        Future.delayed(const Duration(milliseconds: 100), () {
-          if (mounted && !_isDragging) _showCopyMenu();
-        });
+  void _selectElementWithRetry(int attempt) {
+    const max = 8;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_menuIsActive) return;
+      final rect = _targetParagraphRect();
+      if (rect != null && _region != null) {
+        // Inset slightly so the edge points land on real glyphs, not the
+        // paragraph's bounding-box border.
+        final start = rect.topLeft + const Offset(1, 1);
+        final end = rect.bottomRight - const Offset(1, 1);
+        _region!.selectRange(start, end);
+        // selectRange is synchronous; onSelectionChanged fires next frame.
+        // _onSelectionChanged will show the copy menu when the notifier updates.
+        return;
       }
+      // rect not ready yet — retry next frame
+      if (attempt < max) {
+        _selectElementWithRetry(attempt + 1);
+      }
+    });
+  }
+
+  /// Returns the global rect of the [RenderParagraph] the user long-pressed.
+  ///
+  /// We select at paragraph granularity rather than the wrapper's outer render
+  /// box. This is what makes element-scoped selection correct:
+  /// - heading: picks the text paragraph, not the divider below it
+  /// - list: picks only the tapped list item, not the whole list column
+  /// - blockquote / table: picks the inner text, excluding the decoration
+  ///   margin that would otherwise overshoot into the element above
+  /// - table cell: picks just that cell's paragraph
+  ///
+  /// Falls back to the largest paragraph in the element if the press position
+  /// can't be matched (e.g. menu re-show after rotation).
+  Rect? _targetParagraphRect() {
+    final ctx = _contentKey.currentContext;
+    final root = ctx?.findRenderObject();
+    if (root is! RenderBox || !root.hasSize) return null;
+
+    final paragraphs = <RenderParagraph>[];
+    void visit(RenderObject node) {
+      if (node is RenderParagraph) paragraphs.add(node);
+      node.visitChildren(visit);
     }
+
+    visit(root);
+
+    // Keep only paragraphs that hold real text. Container paragraphs that just
+    // host a WidgetSpan render as the object-replacement char (U+FFFC); those
+    // are the outer list/heading/quote boxes we must NOT select as a whole.
+    bool hasRealText(RenderParagraph p) {
+      final t = p.text.toPlainText().replaceAll('￼', '').trim();
+      return t.isNotEmpty;
+    }
+
+    final textParagraphs = paragraphs.where(hasRealText).toList();
+    if (textParagraphs.isEmpty) {
+      final tl = root.localToGlobal(Offset.zero);
+      return tl & root.size;
+    }
+
+    Rect rectOf(RenderParagraph p) {
+      final tl = p.localToGlobal(Offset.zero);
+      return tl & p.size;
+    }
+
+    // Among paragraphs containing the long-press point, pick the innermost
+    // (smallest area) — that's the specific list item / cell / line tapped.
+    final press = _longPressPosition;
+    if (press != null) {
+      RenderParagraph? best;
+      double bestArea = double.infinity;
+      for (final p in textParagraphs) {
+        final r = rectOf(p);
+        if (r.contains(press)) {
+          final area = r.width * r.height;
+          if (area < bestArea) {
+            bestArea = area;
+            best = p;
+          }
+        }
+      }
+      if (best != null) return rectOf(best);
+    }
+
+    // Fallback: the tallest text paragraph (the main content block).
+    textParagraphs.sort((a, b) => b.size.height.compareTo(a.size.height));
+    return rectOf(textParagraphs.first);
   }
 
   Future<void> _handleCopy(String text) async {
+    _clearAll();
     if (text.isNotEmpty) {
       await Clipboard.setData(ClipboardData(text: text));
-    }
-    _clearAll();
-  }
-
-  void _onScrollStart() {
-    _isScrolling = true;
-    _removeMenu(); // hide menu while scrolling, preserve selection
-  }
-
-  void _onScrollEnd() {
-    _isScrolling = false;
-    // Reshow menu if still in selectable mode with a valid selection
-    if (_isSelectableMode &&
-        _currentSelection != null &&
-        _currentSelection!.isValid &&
-        !_currentSelection!.isCollapsed) {
-      Future.delayed(const Duration(milliseconds: 150), () {
-        if (mounted && !_isDragging && !_isScrolling) _showCopyMenu();
-      });
     }
   }
 
@@ -211,19 +258,10 @@ class _CustomSelectableWrapperState extends State<CustomSelectableWrapper>
   }
 
   void _clearAll() {
+    _menuTimer?.cancel();
+    _menuIsActive = false;
+    _inSelectionPhase = false;
     _removeMenu();
-    setState(() {
-      _isSelectableMode = false;
-      _currentSelection = null;
-      _isDragging = false;
-    });
-  }
-
-  String _getSelectedText() {
-    if (_currentSelection == null || !_currentSelection!.isValid) return '';
-    final text = widget.elementContext.plainText;
-    final start = _currentSelection!.start.clamp(0, text.length);
-    final end = _currentSelection!.end.clamp(0, text.length);
-    return start < end ? text.substring(start, end) : '';
+    _region?.clearSelection();
   }
 }

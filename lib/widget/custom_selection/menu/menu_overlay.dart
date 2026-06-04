@@ -109,11 +109,14 @@ class _MenuOverlayState extends State<MenuOverlay>
 
     return Stack(
       children: [
-        // Tap outside to dismiss
+        // Tap outside the menu bubble dismisses it.
+        // HitTestBehavior.deferToChild: the fill layer only responds where no
+        // child (menu bubble) is present, so tapping on a menu item reaches
+        // the item's InkWell first and the fill layer never fires.
         Positioned.fill(
           child: GestureDetector(
             onTap: widget.onDismiss,
-            behavior: HitTestBehavior.translucent,
+            behavior: HitTestBehavior.deferToChild,
             child: Container(color: Colors.transparent),
           ),
         ),

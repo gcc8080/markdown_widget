@@ -49,7 +49,9 @@ class MenuBuilder {
         label: '选取文字',
         icon: Icons.text_fields,
         onTap: () {
-          onDismiss();
+          // Call onSelectText first; it removes the menu itself via _removeMenu.
+          // Do NOT call onDismiss here — that would call _clearAll which resets
+          // _menuIsActive/_inSelectionPhase before _handleSelectText can set them.
           onSelectText?.call();
         },
       ));

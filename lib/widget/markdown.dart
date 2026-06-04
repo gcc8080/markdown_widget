@@ -1,40 +1,24 @@
 import 'dart:collection';
 
+import 'package:flutter/cupertino.dart' show cupertinoTextSelectionHandleControls;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
+import 'custom_selection/vendor/selectable_region_fork.dart';
+
 class MarkdownWidget extends StatefulWidget {
-  ///the markdown data
   final String data;
-
-  ///if [tocController] is not null, you can use [tocListener] to get current TOC index
   final TocController? tocController;
-
-  ///set the desired scroll physics for the markdown item list
   final ScrollPhysics? physics;
-
-  ///set shrinkWrap to obtained [ListView] (only available when [tocController] is null)
   final bool shrinkWrap;
-
-  /// [ListView] padding
   final EdgeInsetsGeometry? padding;
-
-  ///make text selectable
   final bool selectable;
-
-  ///the configs of markdown
   final MarkdownConfig? config;
-
-  ///config for [MarkdownGenerator]
   final MarkdownGenerator? markdownGenerator;
-
-  /// Enable custom selection mode
   final bool enableCustomSelection;
-
-  /// Config for custom selection mode
   final CustomSelectionConfig? customSelectionConfig;
 
   const MarkdownWidget({
@@ -56,23 +40,17 @@ class MarkdownWidget extends StatefulWidget {
 }
 
 class _MarkdownWidgetState extends State<MarkdownWidget> {
-  ///use [markdownGenerator] to transform markdown data to [Widget] list
   late MarkdownGenerator markdownGenerator;
-
-  ///The markdown string converted by MarkdownGenerator will be retained in the [_widgets]
   List<Widget> _widgets = [];
-
-  ///[TocController] combines [TocWidget] and [MarkdownWidget]
   TocController? _tocController;
-
-  ///[AutoScrollController] provides the scroll to index mechanism
   final AutoScrollController controller = AutoScrollController();
-
-  ///every [VisibilityDetector]'s child which is visible will be kept with [indexTreeSet]
   final indexTreeSet = SplayTreeSet<int>((a, b) => a - b);
-
-  ///if the [ScrollDirection] of [ListView] is [ScrollDirection.forward], [isForward] will be true
   bool isForward = true;
+
+  // Shared across all elements when custom selection is active.
+  final _regionKey = GlobalKey<MdSelectableRegionState>();
+  final _selectedTextNotifier = ValueNotifier<String>('');
+  final _regionFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -84,26 +62,23 @@ class _MarkdownWidgetState extends State<MarkdownWidget> {
     updateState();
   }
 
-  ///when we've got the data, we need update data without setState() to avoid the flicker of the view
   void updateState() {
     indexTreeSet.clear();
     markdownGenerator = widget.markdownGenerator ?? MarkdownGenerator();
     final effectiveConfig = widget.enableCustomSelection
-        ? (widget.customSelectionConfig ??
-            const CustomSelectionConfig(enabled: true))
+        ? (widget.customSelectionConfig ?? const CustomSelectionConfig(enabled: true))
         : null;
     final result = markdownGenerator.buildWidgets(
       widget.data,
-      onTocList: (tocList) {
-        _tocController?.setTocList(tocList);
-      },
+      onTocList: (tocList) => _tocController?.setTocList(tocList),
       config: widget.config,
       customSelectionConfig: effectiveConfig,
+      regionKey: widget.enableCustomSelection ? _regionKey : null,
+      selectedTextNotifier: widget.enableCustomSelection ? _selectedTextNotifier : null,
     );
     _widgets.addAll(result);
   }
 
-  ///this method will be called when [updateState] or [dispose]
   void clearState() {
     indexTreeSet.clear();
     _widgets.clear();
@@ -114,53 +89,73 @@ class _MarkdownWidgetState extends State<MarkdownWidget> {
     clearState();
     controller.dispose();
     _tocController?.jumpToIndexCallback = null;
+    _selectedTextNotifier.dispose();
+    _regionFocusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => buildMarkdownWidget();
 
-  ///
   Widget buildMarkdownWidget() {
-    final markdownWidget = NotificationListener<UserScrollNotification>(
+    final listView = NotificationListener<UserScrollNotification>(
       onNotification: (notification) {
-        final ScrollDirection direction = notification.direction;
-        isForward = direction == ScrollDirection.forward;
+        isForward = notification.direction == ScrollDirection.forward;
         return true;
       },
       child: ListView.builder(
         shrinkWrap: widget.shrinkWrap,
         physics: widget.physics,
         controller: controller,
-        itemBuilder: (ctx, index) => wrapByAutoScroll(index,
-            wrapByVisibilityDetector(index, _widgets[index]), controller),
+        itemBuilder: (ctx, index) => wrapByAutoScroll(
+            index, wrapByVisibilityDetector(index, _widgets[index]), controller),
         itemCount: _widgets.length,
         padding: widget.padding,
       ),
     );
-    return widget.selectable && !widget.enableCustomSelection
-        ? SelectionArea(child: markdownWidget)
-        : markdownWidget;
+
+    if (widget.enableCustomSelection) {
+      // Single forked MdSelectableRegion for the entire content.
+      // • handle-only controls → no native toolbar competes with our custom menu
+      // • contextMenuBuilder returns empty → native toolbar suppressed
+      // • onSelectionChanged → feeds selectedTextNotifier for all element wrappers
+      // • selectRange (added on the fork) lets a wrapper select just its element
+      return MdSelectableRegion(
+        key: _regionKey,
+        focusNode: _regionFocusNode,
+        selectionControls: _platformHandleControls(context),
+        contextMenuBuilder: (context, state) => const SizedBox.shrink(),
+        onSelectionChanged: (content) {
+          _selectedTextNotifier.value = content?.plainText ?? '';
+        },
+        child: listView,
+      );
+    }
+
+    return widget.selectable ? SelectionArea(child: listView) : listView;
   }
 
-  ///wrap widget by [VisibilityDetector] that can know if [child] is visible
+  TextSelectionControls _platformHandleControls(BuildContext context) {
+    switch (Theme.of(context).platform) {
+      case TargetPlatform.iOS:
+      case TargetPlatform.macOS:
+        return cupertinoTextSelectionHandleControls;
+      default:
+        return materialTextSelectionHandleControls;
+    }
+  }
+
   Widget wrapByVisibilityDetector(int index, Widget child) {
     return VisibilityDetector(
       key: ValueKey(index.toString()),
-      onVisibilityChanged: (VisibilityInfo info) {
-        final visibleFraction = info.visibleFraction;
+      onVisibilityChanged: (info) {
+        final v = info.visibleFraction;
         if (isForward) {
-          visibleFraction == 0
-              ? indexTreeSet.remove(index)
-              : indexTreeSet.add(index);
+          v == 0 ? indexTreeSet.remove(index) : indexTreeSet.add(index);
         } else {
-          visibleFraction == 1.0
-              ? indexTreeSet.add(index)
-              : indexTreeSet.remove(index);
+          v == 1.0 ? indexTreeSet.add(index) : indexTreeSet.remove(index);
         }
-        if (indexTreeSet.isNotEmpty) {
-          _tocController?.onIndexChanged(indexTreeSet.first);
-        }
+        if (indexTreeSet.isNotEmpty) _tocController?.onIndexChanged(indexTreeSet.first);
       },
       child: child,
     );
@@ -174,9 +169,7 @@ class _MarkdownWidgetState extends State<MarkdownWidget> {
   }
 }
 
-///wrap widget by [AutoScrollTag] that can use [AutoScrollController] to scrollToIndex
-Widget wrapByAutoScroll(
-    int index, Widget child, AutoScrollController controller) {
+Widget wrapByAutoScroll(int index, Widget child, AutoScrollController controller) {
   return AutoScrollTag(
     key: Key(index.toString()),
     controller: controller,

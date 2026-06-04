@@ -8,7 +8,13 @@
       "Bash(openspec list *)",
       "Bash(openspec new *)",
       "Bash(openspec status *)",
-      "Bash(openspec instructions *)"
+      "Bash(openspec instructions *)",
+      "Bash(grep -n '^  [a-zA-Z].*{$\\\\|^  [a-zA-Z].* =>$\\\\|^  final ' /Users/zhangting/fvm/versions/3.27.4/packages/flutter/lib/src/widgets/selectable_region.dart)",
+      "Bash(cp /Users/zhangting/fvm/versions/3.27.4/packages/flutter/lib/src/widgets/selectable_region.dart lib/widget/custom_selection/vendor/selectable_region_fork.dart)",
+      "Bash(python3 -)",
+      "Bash(cat)",
+      "Read(//tmp/**)",
+      "Bash(git stash *)"
     ]
   }
 }
