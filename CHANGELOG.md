@@ -1,3 +1,11 @@
+### [2.4.0]
+- Feat: custom selection mode
+  - Add `enableCustomSelection` and `customSelectionConfig` to `MarkdownWidget`
+  - Long-press shows a customizable popup menu before selecting text
+  - Element-scoped selection (heading, paragraph, list item, code block, blockquote, table cell, etc.)
+  - Customizable menu style, animations, and extension items with element context
+  - See `example/lib/pages/custom_selection_page.dart`
+
 ### [2.3.2]
 - Feat: auto check code language and show it
 - Feat: add `RichTextBuilder`

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 
-import '../../config/custom_selection_config.dart';
-
 const _demoMarkdown = '''
 # 自定义选择模式示例
 

@@ -6,8 +6,6 @@ import 'package:markdown_widget/markdown_widget.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
-import '../config/custom_selection_config.dart';
-
 class MarkdownWidget extends StatefulWidget {
   ///the markdown data
   final String data;

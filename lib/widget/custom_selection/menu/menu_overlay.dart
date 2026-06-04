@@ -91,6 +91,22 @@ class _MenuOverlayState extends State<MenuOverlay>
 
   @override
   Widget build(BuildContext context) {
+    // Calculate adjusted position to keep menu on screen
+    final screenSize = MediaQuery.of(context).size;
+    const menuSize = Size(200, 50); // Approximate menu size
+
+    double left = widget.position.dx - menuSize.width / 2;
+    double top = widget.position.dy - menuSize.height - 10;
+
+    // Adjust for screen boundaries
+    if (left < 10) left = 10;
+    if (left + menuSize.width > screenSize.width - 10) {
+      left = screenSize.width - menuSize.width - 10;
+    }
+    if (top < 10) {
+      top = widget.position.dy + 10; // Show below if not enough space above
+    }
+
     return Stack(
       children: [
         // Tap outside to dismiss
@@ -101,8 +117,12 @@ class _MenuOverlayState extends State<MenuOverlay>
             child: Container(color: Colors.transparent),
           ),
         ),
-        // Menu
-        _buildAnimatedMenu(),
+        // Menu - Positioned must be a direct child of Stack
+        Positioned(
+          left: left,
+          top: top,
+          child: _buildAnimatedMenu(),
+        ),
       ],
     );
   }
@@ -144,52 +164,32 @@ class _MenuOverlayState extends State<MenuOverlay>
   }
 
   Widget _buildMenu() {
-    // Calculate adjusted position to keep menu on screen
-    final screenSize = MediaQuery.of(context).size;
-    final menuSize = Size(200, 50); // Approximate menu size
-
-    double left = widget.position.dx - menuSize.width / 2;
-    double top = widget.position.dy - menuSize.height - 10;
-
-    // Adjust for screen boundaries
-    if (left < 10) left = 10;
-    if (left + menuSize.width > screenSize.width - 10) {
-      left = screenSize.width - menuSize.width - 10;
-    }
-    if (top < 10) {
-      top = widget.position.dy + 10; // Show below if not enough space above
-    }
-
-    return Positioned(
-      left: left,
-      top: top,
-      child: Material(
-        color: Colors.transparent,
-        child: Container(
-          decoration: BoxDecoration(
-            color: widget.config.menuStyle.backgroundColor ?? Colors.white,
-            borderRadius: widget.config.menuStyle.borderRadius ??
-                BorderRadius.circular(8),
-            border: widget.config.menuStyle.border,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: widget.config.menuStyle.elevation ?? 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          padding: widget.config.menuStyle.padding ??
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: MenuBuilder.buildMenu(
-            context: context,
-            config: widget.config,
-            elementContext: widget.elementContext,
-            isInitialMenu: widget.isInitialMenu,
-            onSelectText: widget.onSelectText,
-            onCopy: widget.onCopy,
-            onDismiss: widget.onDismiss,
-          ),
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        decoration: BoxDecoration(
+          color: widget.config.menuStyle.backgroundColor ?? Colors.white,
+          borderRadius:
+              widget.config.menuStyle.borderRadius ?? BorderRadius.circular(8),
+          border: widget.config.menuStyle.border,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: widget.config.menuStyle.elevation ?? 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        padding: widget.config.menuStyle.padding ??
+            const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: MenuBuilder.buildMenu(
+          context: context,
+          config: widget.config,
+          elementContext: widget.elementContext,
+          isInitialMenu: widget.isInitialMenu,
+          onSelectText: widget.onSelectText,
+          onCopy: widget.onCopy,
+          onDismiss: widget.onDismiss,
         ),
       ),
     );

@@ -97,6 +97,7 @@ enum RouterEnum {
   editor,
   sample_latex,
   sample_html,
+  custom_selection,
 }
 
 extension RoutePath on RouterEnum {

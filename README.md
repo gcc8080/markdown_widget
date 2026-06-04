@@ -135,6 +135,40 @@ Cross-platform support for Select All and Copy function.
 
 ![image](https://user-images.githubusercontent.com/30992818/226107076-f32a919e-9a0c-4138-8a0b-266c6337e0af.png)
 
+## ✂️Custom Selection Mode
+
+By default, `MarkdownWidget` uses Flutter's `SelectionArea` for selection. When you need finer control — element-scoped selection and a fully customizable popup menu — enable custom selection mode.
+
+When enabled, long-pressing a markdown element first pops up a customizable menu (instead of immediately selecting text). Tapping `选取文字` (Select Text) selects the whole content of the pressed element (a heading, paragraph, list item, code block, blockquote, table cell, etc.), then shows a `复制` (Copy) menu. You can still drag the selection handles to adjust the range.
+
+```dart
+MarkdownWidget(
+  data: markdownData,
+  enableCustomSelection: true,
+  customSelectionConfig: CustomSelectionConfig(
+    enabled: true,
+    menuStyle: CustomMenuStyle.light(),
+    animationConfig: const MenuAnimationConfig(
+      type: MenuAnimationType.fadeScale,
+    ),
+    // Add custom menu items with element context
+    extension: MenuExtension(
+      items: [
+        CustomMenuItem.withContext(
+          label: 'Translate',
+          icon: Icons.translate,
+          onContextTap: (ctx) {
+            // ctx.plainText, ctx.elementType, ctx.selectedText ...
+          },
+        ),
+      ],
+    ),
+  ),
+);
+```
+
+See the full example in [custom_selection_page.dart](https://github.com/asjqkkkk/markdown_widget/blob/dev/example/lib/pages/custom_selection_page.dart).
+
 ## 🌐Html tag
 
 As the current package only implements the conversion of Markdown tags, it does not support the conversion of HTML tags by default. However, this functionality can be supported through extension. You can refer to the usage in [html_support.dart](https://github.com/asjqkkkk/markdown_widget/blob/dev/example/lib/markdown_custom/html_support.dart) for more details.

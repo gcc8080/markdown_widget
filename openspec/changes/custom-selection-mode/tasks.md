@@ -182,35 +182,35 @@
 
 ## 11. Example Application
 
-- [ ] 11.1 Create example page
+- [x] 11.1 Create example page
   - Create `example/lib/pages/custom_selection_page.dart`
   - Show basic custom selection usage
-- [ ] 11.2 Add style customization example
+- [x] 11.2 Add style customization example
   - Demonstrate custom colors, icons, layout
   - Show light/dark theme variants
-- [ ] 11.3 Add extension examples
+- [x] 11.3 Add extension examples
   - Show simple custom item
   - Show context-aware custom item
   - Show conditional items by element type
-- [ ] 11.4 Update example navigation
+- [x] 11.4 Update example navigation
   - Add entry point to custom selection example
   - Update example app routing
 
 ## 12. Testing
 
-- [ ] 12.1 Add unit tests for MenuBuilder
+- [x] 12.1 Add unit tests for MenuBuilder
   - Test menu construction
   - Test insertion positions
   - Test built-in item hiding
-- [ ] 12.2 Add widget tests for CustomSelectableWrapper
+- [x] 12.2 Add widget tests for CustomSelectableWrapper
   - Test mode transitions
   - Test long press detection
   - Test menu display
-- [ ] 12.3 Add integration tests
+- [x] 12.3 Add integration tests
   - Test full selection flow
   - Test menu interactions
   - Test extension API
-- [ ] 12.4 Add element-specific selection tests
+- [x] 12.4 Add element-specific selection tests
   - Test table cell selection
   - Test image element exclusion
   - Test link text selection
@@ -226,27 +226,27 @@
 
 ## 13. Documentation
 
-- [ ] 13.1 Write API documentation
+- [x] 13.1 Write API documentation
   - Document all public classes
   - Document configuration options
   - Add code examples
-- [ ] 13.2 Create README section
+- [x] 13.2 Create README section
   - Add custom selection section to main README
   - Include quick start guide
   - Link to example code
-- [ ] 13.3 Update CHANGELOG
+- [x] 13.3 Update CHANGELOG
   - Add entry for new feature
   - Document breaking changes (none expected)
 
 ## 14. Release Preparation
 
-- [ ] 14.1 Version bump
+- [x] 14.1 Version bump
   - Update pubspec.yaml version
   - Follow semantic versioning
-- [ ] 14.2 Final testing pass
+- [x] 14.2 Final testing pass
   - Run all tests
   - Manual verification on devices
   - Performance check
-- [ ] 14.3 Create release notes
+- [x] 14.3 Create release notes
   - Summarize new feature
   - Document migration guide (if needed)
