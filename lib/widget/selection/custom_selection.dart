@@ -31,6 +31,7 @@ class _MarkdownCustomSelectionAreaState
       <String, _MarkdownSelectionDelegate>{};
   final Map<String, _MarkdownSelectionTargetWidgetState> _selectionUnitStates =
       <String, _MarkdownSelectionTargetWidgetState>{};
+  List<String> _manualSelectedTargetIds = <String>[];
   OverlayEntry? _menuEntry;
   OverlayEntry? _handlesEntry;
   MarkdownSelectionTarget? _selectedTarget;
@@ -63,6 +64,9 @@ class _MarkdownCustomSelectionAreaState
       controller: this,
       child: Listener(
         behavior: HitTestBehavior.translucent,
+        onPointerDown: (_) {
+          _ignoreNextPointerUpAfterScroll = false;
+        },
         onPointerUp: (event) {
           if (_ignoreNextPointerUpAfterScroll ||
               _ignoreNextPointerUpAfterHandleDrag) {
@@ -77,6 +81,8 @@ class _MarkdownCustomSelectionAreaState
             if (notification is ScrollStartNotification) {
               _ignoreNextPointerUpAfterScroll = true;
               _removeMenu();
+            } else if (notification is ScrollEndNotification) {
+              _ignoreNextPointerUpAfterScroll = false;
             }
             _scheduleHandleRefresh();
             return false;
@@ -138,6 +144,7 @@ class _MarkdownCustomSelectionAreaState
     }
     _selectionDelegate.clear();
     _clearUnitSelections(exceptTargetId: target.id);
+    _manualSelectedTargetIds = <String>[];
     _selectedTarget = target;
     _activeSelectionDelegate = delegate;
     _selectedTextOverride = target.plainText;
@@ -153,6 +160,7 @@ class _MarkdownCustomSelectionAreaState
     _activeSelectionDelegate = null;
     _selectedTextOverride = null;
     _selectedRect = null;
+    _manualSelectedTargetIds = <String>[];
     _removeMenu();
     _removeHandles();
     _selectionDelegate.clear();
@@ -164,8 +172,10 @@ class _MarkdownCustomSelectionAreaState
     final selectedTarget = _selectedTarget;
     if (selectedTarget == null) return;
     final delegate = _activeSelectionDelegate ?? _selectionDelegate;
-    if (delegate.containsGlobalPosition(globalPosition)) {
-      final rect = delegate.selectedGlobalRect ?? _selectedRect;
+    final fallbackRect = _selectedUnitRectAt(globalPosition);
+    final containsSelection = delegate.containsGlobalPosition(globalPosition);
+    if (containsSelection || fallbackRect != null) {
+      final rect = delegate.selectedGlobalRect ?? fallbackRect ?? _selectedRect;
       if (rect != null) _showSelectedMenu(selectedTarget, rect);
     } else {
       clearSelection();
@@ -325,6 +335,7 @@ class _MarkdownCustomSelectionAreaState
     _selectionUnits[targetId] = delegate;
     _selectionUnitStates[targetId] = state;
     delegate.addListener(_handleSelectionGeometryChanged);
+    _restoreManualSelectedUnitIfNeeded(targetId, delegate, state);
     _restoreSelectedUnitIfNeeded(targetId, delegate, state);
   }
 
@@ -336,6 +347,9 @@ class _MarkdownCustomSelectionAreaState
     delegate.removeListener(_handleSelectionGeometryChanged);
     _selectionUnits.remove(targetId);
     _selectionUnitStates.remove(targetId);
+    if (_manualSelectedTargetIds.contains(targetId)) {
+      _refreshManualSelectionDelegates();
+    }
     if (_activeSelectionDelegate == delegate) {
       _activeSelectionDelegate = null;
       _removeHandles();
@@ -348,6 +362,7 @@ class _MarkdownCustomSelectionAreaState
     _MarkdownSelectionDelegate delegate,
     _MarkdownSelectionTargetWidgetState state,
   ) {
+    if (_manualSelectedTargetIds.isNotEmpty) return;
     final selectedTarget = _selectedTarget;
     if (selectedTarget == null || selectedTarget.id != targetId) return;
     _selectedTarget = state.widget.target;
@@ -364,6 +379,27 @@ class _MarkdownCustomSelectionAreaState
     });
   }
 
+  void _restoreManualSelectedUnitIfNeeded(
+    String targetId,
+    _MarkdownSelectionDelegate delegate,
+    _MarkdownSelectionTargetWidgetState state,
+  ) {
+    if (!_manualSelectedTargetIds.contains(targetId)) return;
+    if (_activeSelectionDelegate != _selectionDelegate) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!_manualSelectedTargetIds.contains(targetId)) return;
+      if (_selectionUnits[targetId] != delegate) return;
+      delegate.selectAllContent();
+      _refreshManualSelectionDelegates();
+      _selectedRect = _selectionDelegate.selectedGlobalRect ??
+          state.globalRect ??
+          _selectedRect;
+      _showHandles();
+      if (mounted) setState(() {});
+    });
+  }
+
   void _clearUnitSelections({String? exceptTargetId}) {
     for (final entry in _selectionUnits.entries) {
       if (entry.key == exceptTargetId) continue;
@@ -371,18 +407,29 @@ class _MarkdownCustomSelectionAreaState
     }
   }
 
-  void _handleSelectionHandleDragStart() {
+  void _handleSelectionHandleDragStart(bool isStart) {
     _ignoreNextPointerUpAfterHandleDrag = true;
     _selectedTextOverride = null;
-    _handleDragAnchor = null;
+    if (_activeSelectionDelegate == _selectionDelegate) {
+      _handleDragAnchor = isStart
+          ? _selectionDelegate.globalEndPoint
+          : _selectionDelegate.globalStartPoint;
+    } else {
+      _handleDragAnchor = null;
+    }
     _removeMenu();
   }
 
   void _handleSelectionHandleDragUpdate(bool isStart, Offset globalPosition) {
-    if (_activeSelectionDelegate == _selectionDelegate &&
-        _handleDragAnchor != null) {
+    if (_activeSelectionDelegate == _selectionDelegate) {
+      final anchor = _handleDragAnchor ??
+          (isStart
+              ? _selectionDelegate.globalEndPoint
+              : _selectionDelegate.globalStartPoint);
+      if (anchor == null) return;
+      _handleDragAnchor = anchor;
       _selectUnitRangeBetweenGlobalPoints(
-        _handleDragAnchor!,
+        anchor,
         globalPosition,
       );
       return;
@@ -433,15 +480,23 @@ class _MarkdownCustomSelectionAreaState
     final startIndex = anchorIndex < extentIndex ? anchorIndex : extentIndex;
     final endIndex = anchorIndex < extentIndex ? extentIndex : anchorIndex;
     final selectedDelegates = <_MarkdownSelectionDelegate>[];
+    final selectedTargetIds = <String>[];
+    final selectedTargets = <MarkdownSelectionTarget>[];
     for (var index = 0; index < units.length; index += 1) {
-      final delegate = units[index].selectionDelegate;
+      final state = units[index];
+      final delegate = state.selectionDelegate;
       if (index >= startIndex && index <= endIndex) {
         delegate.selectAllContent();
         selectedDelegates.add(delegate);
+        selectedTargetIds.add(state.widget.target.id);
+        selectedTargets.add(state.widget.target);
       } else {
         delegate.clear();
       }
     }
+    _manualSelectedTargetIds = selectedTargetIds;
+    _selectedTextOverride =
+        selectedTargets.map((target) => target.plainText).join();
     _selectionDelegate.setManualSelectionDelegates(selectedDelegates);
   }
 
@@ -469,6 +524,42 @@ class _MarkdownCustomSelectionAreaState
     final rect = _selectionUnitStates[selectedTargetId]?.globalRect;
     if (rect == null) return false;
     return !rect.inflate(8).contains(globalPosition);
+  }
+
+  Rect? _selectedUnitRectAt(Offset globalPosition) {
+    final activeDelegate = _activeSelectionDelegate;
+    if (activeDelegate == _selectionDelegate &&
+        _manualSelectedTargetIds.isNotEmpty) {
+      for (final targetId in _manualSelectedTargetIds) {
+        final state = _selectionUnitStates[targetId];
+        if (state == null) continue;
+        final rect = state.globalRect;
+        if (rect != null && rect.inflate(4).contains(globalPosition)) {
+          return rect;
+        }
+      }
+      return null;
+    }
+
+    if (activeDelegate == null) return null;
+    for (final state in _selectionUnitStates.values) {
+      if (state.selectionDelegate != activeDelegate) continue;
+      final rect = state.globalRect;
+      if (rect != null && rect.inflate(4).contains(globalPosition)) {
+        return rect;
+      }
+    }
+    return null;
+  }
+
+  void _refreshManualSelectionDelegates() {
+    if (_manualSelectedTargetIds.isEmpty) return;
+    final delegates = <_MarkdownSelectionDelegate>[];
+    for (final targetId in _manualSelectedTargetIds) {
+      final delegate = _selectionUnits[targetId];
+      if (delegate != null) delegates.add(delegate);
+    }
+    _selectionDelegate.setManualSelectionDelegates(delegates);
   }
 }
 
@@ -649,8 +740,12 @@ class _MarkdownSelectionDelegate
     }
     final point = value.startSelectionPoint;
     if (point != null) {
+      final transform = _safeTransformToRoot;
+      if (transform == null) return null;
       return MatrixUtils.transformPoint(
-          getTransformTo(null), point.localPosition);
+        transform,
+        point.localPosition,
+      );
     }
     final rects = _globalSelectionRects;
     if (rects.isEmpty) return null;
@@ -669,8 +764,12 @@ class _MarkdownSelectionDelegate
     }
     final point = value.endSelectionPoint;
     if (point != null) {
+      final transform = _safeTransformToRoot;
+      if (transform == null) return null;
       return MatrixUtils.transformPoint(
-          getTransformTo(null), point.localPosition);
+        transform,
+        point.localPosition,
+      );
     }
     final rects = _globalSelectionRects;
     if (rects.isEmpty) return null;
@@ -806,7 +905,8 @@ class _MarkdownSelectionDelegate
   }
 
   List<Rect> get _globalSelectionRects {
-    final transform = getTransformTo(null);
+    final transform = _safeTransformToRoot;
+    if (transform == null) return const <Rect>[];
     return value.selectionRects
         .map((rect) => MatrixUtils.transformRect(transform, rect))
         .toList(growable: false)
@@ -814,6 +914,14 @@ class _MarkdownSelectionDelegate
         final vertical = a.top.compareTo(b.top);
         return vertical != 0 ? vertical : a.left.compareTo(b.left);
       });
+  }
+
+  Matrix4? get _safeTransformToRoot {
+    try {
+      return getTransformTo(null);
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
@@ -852,9 +960,10 @@ class _MarkdownSelectionDelegate
   }
 
   bool _selectableIntersectsGlobalRect(Selectable selectable, Rect globalRect) {
+    final transform = _safeSelectableTransformToRoot(selectable);
+    if (transform == null) return false;
     for (final box in selectable.boundingBoxes) {
-      final selectableRect =
-          MatrixUtils.transformRect(selectable.getTransformTo(null), box);
+      final selectableRect = MatrixUtils.transformRect(transform, box);
       if (selectableRect.inflate(1).overlaps(globalRect)) return true;
       if (globalRect.contains(selectableRect.center)) return true;
     }
@@ -879,20 +988,29 @@ class _MarkdownSelectionDelegate
   }
 
   Rect? _selectableGlobalRect(Selectable selectable) {
+    final transform = _safeSelectableTransformToRoot(selectable);
+    if (transform == null) return null;
     Rect? result;
     for (final box in selectable.boundingBoxes) {
-      final rect =
-          MatrixUtils.transformRect(selectable.getTransformTo(null), box);
+      final rect = MatrixUtils.transformRect(transform, box);
       result = result == null ? rect : result.expandToInclude(rect);
     }
     return result;
+  }
+
+  Matrix4? _safeSelectableTransformToRoot(Selectable selectable) {
+    try {
+      return selectable.getTransformTo(null);
+    } catch (_) {
+      return null;
+    }
   }
 }
 
 class _MarkdownSelectionHandlesOverlay extends StatelessWidget {
   final _MarkdownSelectionDelegate Function() delegate;
   final Color color;
-  final VoidCallback onDragStart;
+  final ValueChanged<bool> onDragStart;
   final void Function(bool isStart, Offset globalPosition) onDragUpdate;
   final VoidCallback onDragEnd;
 
@@ -925,7 +1043,7 @@ class _MarkdownSelectionHandlesOverlay extends StatelessWidget {
           position: startLocal,
           color: color,
           isStart: true,
-          onDragStart: onDragStart,
+          onDragStart: () => onDragStart(true),
           onDragUpdate: (globalPosition) => onDragUpdate(true, globalPosition),
           onDragEnd: onDragEnd,
         ),
@@ -937,7 +1055,7 @@ class _MarkdownSelectionHandlesOverlay extends StatelessWidget {
           position: endLocal,
           color: color,
           isStart: false,
-          onDragStart: onDragStart,
+          onDragStart: () => onDragStart(false),
           onDragUpdate: (globalPosition) => onDragUpdate(false, globalPosition),
           onDragEnd: onDragEnd,
         ),

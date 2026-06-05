@@ -847,6 +847,85 @@ void main() {
     expect(find.text('复制'), findsOneWidget);
   });
 
+  testWidgets('handle can be adjusted again after cross-block drag',
+      (tester) async {
+    MarkdownSelectionMenuContext? selectedContext;
+    await tester.pumpWidget(testApp(
+      MarkdownWidget(
+        data: 'first paragraph\n\n> quoted paragraph\n\nsecond paragraph',
+        selectionConfig: MarkdownSelectionConfig(
+          selectedTextMenuBuilder: (context, menuContext) {
+            selectedContext = menuContext;
+            return Material(
+              child: TextButton(
+                onPressed: () =>
+                    menuContext.builtInActions.single.onPressed(menuContext),
+                child: Text(menuContext.builtInActions.single.label),
+              ),
+            );
+          },
+        ),
+      ),
+    ));
+
+    await tester.longPress(find.text('first paragraph'));
+    await tester.pump();
+    await tester.tap(find.text('选取文字'));
+    await tester.pump();
+    expect(selectedContext?.selectedText, contains('first paragraph'));
+
+    final quoteTarget = find.byWidgetPredicate(
+      (widget) =>
+          widget is MarkdownSelectionTargetWidget &&
+          widget.target.type == MarkdownSelectionTargetType.blockquote &&
+          widget.target.plainText.contains('quoted paragraph'),
+    );
+    final secondParagraphTarget = find.byWidgetPredicate(
+      (widget) =>
+          widget is MarkdownSelectionTargetWidget &&
+          widget.target.type == MarkdownSelectionTargetType.paragraph &&
+          widget.target.plainText.contains('second paragraph'),
+    );
+    var endHandle = find.byKey(
+      const ValueKey('markdown-selection-end-handle'),
+    );
+    var gesture = await tester.startGesture(tester.getCenter(endHandle));
+    await gesture.moveTo(tester.getRect(quoteTarget.first).center);
+    await tester.pump();
+    await gesture.up();
+    await tester.pump();
+
+    expect(selectedContext?.selectedText, contains('first paragraph'));
+    expect(selectedContext?.selectedText, contains('quoted paragraph'));
+    expect(
+      find.byKey(const ValueKey('markdown-selection-start-handle')),
+      findsOneWidget,
+    );
+    expect(endHandle, findsOneWidget);
+    expect(find.text('复制'), findsOneWidget);
+
+    endHandle = find.byKey(const ValueKey('markdown-selection-end-handle'));
+    gesture = await tester.startGesture(tester.getCenter(endHandle));
+    await gesture.moveTo(tester.getRect(secondParagraphTarget.first).center);
+    await tester.pump();
+    expect(find.text('复制'), findsNothing);
+    await gesture.up();
+    await tester.pump();
+
+    expect(selectedContext?.selectedText, contains('first paragraph'));
+    expect(selectedContext?.selectedText, contains('quoted paragraph'));
+    expect(selectedContext?.selectedText, contains('second paragraph'));
+    expect(
+      find.byKey(const ValueKey('markdown-selection-start-handle')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('markdown-selection-end-handle')),
+      findsOneWidget,
+    );
+    expect(find.text('复制'), findsOneWidget);
+  });
+
   testWidgets('scroll hides selected menu without clearing handles',
       (tester) async {
     final lines = List.generate(40, (index) => 'paragraph $index').join('\n\n');
@@ -1084,6 +1163,83 @@ void main() {
         reason: testCase.type.name,
       );
     }
+  });
+
+  testWidgets('tap inside large scrolled selection skips unlaid delegates',
+      (tester) async {
+    final lines = List.generate(30, (index) => 'paragraph $index').join('\n\n');
+    MarkdownSelectionMenuContext? selectedContext;
+    await tester.pumpWidget(testApp(
+      MarkdownWidget(
+        data: lines,
+        selectionConfig: MarkdownSelectionConfig(
+          selectedTextMenuBuilder: (context, menuContext) {
+            selectedContext = menuContext;
+            return Material(
+              child: Text(menuContext.builtInActions.single.label),
+            );
+          },
+        ),
+      ),
+    ));
+
+    await tester.longPress(find.text('paragraph 0'));
+    await tester.pump();
+    await tester.tap(find.text('选取文字'));
+    await tester.pump();
+
+    final paragraphFour = find.byWidgetPredicate(
+      (widget) =>
+          widget is MarkdownSelectionTargetWidget &&
+          widget.target.type == MarkdownSelectionTargetType.paragraph &&
+          widget.target.plainText.contains('paragraph 4'),
+    );
+    final endHandle = find.byKey(
+      const ValueKey('markdown-selection-end-handle'),
+    );
+    final gesture = await tester.startGesture(tester.getCenter(endHandle));
+    await gesture.moveTo(tester.getRect(paragraphFour.first).center);
+    await tester.pump();
+    await gesture.up();
+    await tester.pump();
+
+    expect(selectedContext?.selectedText, contains('paragraph 0'));
+    expect(selectedContext?.selectedText, contains('paragraph 4'));
+    expect(find.text('复制'), findsOneWidget);
+
+    const viewport = Rect.fromLTWH(0, 0, 400, 600);
+    Finder? visibleSelectedText;
+    for (var i = 0; i < 6 && visibleSelectedText == null; i++) {
+      await tester.drag(find.byType(ListView), const Offset(0, -80));
+      await tester.pumpAndSettle();
+      expect(find.text('复制'), findsNothing);
+
+      final hasRecycledSelectedText =
+          find.text('paragraph 0').evaluate().isEmpty;
+      if (!hasRecycledSelectedText) continue;
+
+      for (var paragraphIndex = 1; paragraphIndex <= 4; paragraphIndex++) {
+        final candidate = find.textContaining(
+          'paragraph $paragraphIndex',
+          findRichText: true,
+        );
+        if (candidate.evaluate().isNotEmpty &&
+            tester.getRect(candidate.first).overlaps(viewport)) {
+          visibleSelectedText = candidate.first;
+          break;
+        }
+      }
+    }
+    expect(visibleSelectedText, isNotNull);
+    final visibleRect =
+        tester.getRect(visibleSelectedText!).intersect(viewport);
+    await tester.tapAt(
+      Offset(visibleRect.left + 8, visibleRect.center.dy),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('复制'), findsOneWidget);
   });
 
   testWidgets('tap outside active selection clears menu and handles',
