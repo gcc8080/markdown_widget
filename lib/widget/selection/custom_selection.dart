@@ -27,9 +27,13 @@ class _MarkdownCustomSelectionAreaState
     extends State<MarkdownCustomSelectionArea> {
   final _MarkdownSelectionDelegate _selectionDelegate =
       _MarkdownSelectionDelegate();
+  final Map<String, _MarkdownSelectionDelegate> _selectionUnits =
+      <String, _MarkdownSelectionDelegate>{};
   OverlayEntry? _menuEntry;
   OverlayEntry? _handlesEntry;
   MarkdownSelectionTarget? _selectedTarget;
+  _MarkdownSelectionDelegate? _activeSelectionDelegate;
+  String? _selectedTextOverride;
   Rect? _selectedRect;
   bool _ignoreNextPointerUpAfterScroll = false;
   bool _ignoreNextPointerUpAfterHandleDrag = false;
@@ -124,9 +128,18 @@ class _MarkdownCustomSelectionAreaState
 
   void selectTarget(MarkdownSelectionTarget target, Rect targetRect) {
     _removeMenu();
+    final delegate = _selectionUnits[target.id];
+    if (delegate == null) {
+      clearSelection();
+      return;
+    }
+    _selectionDelegate.clear();
+    _clearUnitSelections(exceptTargetId: target.id);
     _selectedTarget = target;
-    _selectionDelegate.selectTargetRect(targetRect);
-    _selectedRect = _selectionDelegate.selectedGlobalRect ?? targetRect;
+    _activeSelectionDelegate = delegate;
+    _selectedTextOverride = target.plainText;
+    delegate.selectAllContent();
+    _selectedRect = delegate.selectedGlobalRect ?? targetRect;
     _showHandles();
     _showSelectedMenu(target, _selectedRect!);
     setState(() {});
@@ -134,18 +147,22 @@ class _MarkdownCustomSelectionAreaState
 
   void clearSelection() {
     _selectedTarget = null;
+    _activeSelectionDelegate = null;
+    _selectedTextOverride = null;
     _selectedRect = null;
     _removeMenu();
     _removeHandles();
     _selectionDelegate.clear();
+    _clearUnitSelections();
     if (mounted) setState(() {});
   }
 
   void handleTap(Offset globalPosition) {
     final selectedTarget = _selectedTarget;
     if (selectedTarget == null) return;
-    if (_selectionDelegate.containsGlobalPosition(globalPosition)) {
-      final rect = _selectionDelegate.selectedGlobalRect ?? _selectedRect;
+    final delegate = _activeSelectionDelegate ?? _selectionDelegate;
+    if (delegate.containsGlobalPosition(globalPosition)) {
+      final rect = delegate.selectedGlobalRect ?? _selectedRect;
       if (rect != null) _showSelectedMenu(selectedTarget, rect);
     } else {
       clearSelection();
@@ -156,8 +173,10 @@ class _MarkdownCustomSelectionAreaState
 
   void _showSelectedMenu(MarkdownSelectionTarget target, Rect targetRect) {
     final menuPosition = Offset(targetRect.center.dx, targetRect.top);
-    final selectedText =
-        _selectionDelegate.selectedPlainText ?? target.plainText;
+    final selectedText = _selectedTextOverride ??
+        _activeSelectionDelegate?.selectedPlainText ??
+        _selectionDelegate.selectedPlainText ??
+        target.plainText;
     final applicationActions = widget.config.selectedTextMenuActions
         .map(
           (action) => MarkdownSelectionMenuAction(
@@ -226,9 +245,10 @@ class _MarkdownCustomSelectionAreaState
   }
 
   void _handleSelectionGeometryChanged() {
-    final rect = _selectionDelegate.selectedGlobalRect;
+    final delegate = _activeSelectionDelegate ?? _selectionDelegate;
+    final rect = delegate.selectedGlobalRect;
     _selectedRect = rect ?? _selectedRect;
-    if (_selectedTarget == null || !_selectionDelegate.hasSelection) {
+    if (_selectedTarget == null || !delegate.hasSelection) {
       _removeHandles();
       return;
     }
@@ -236,7 +256,8 @@ class _MarkdownCustomSelectionAreaState
   }
 
   void _showHandles() {
-    if (!_selectionDelegate.hasVisibleEndpoints) {
+    final delegate = _activeSelectionDelegate ?? _selectionDelegate;
+    if (!delegate.hasVisibleEndpoints) {
       _removeHandles();
       return;
     }
@@ -248,15 +269,16 @@ class _MarkdownCustomSelectionAreaState
     } else {
       _handlesEntry = OverlayEntry(
         builder: (context) => _MarkdownSelectionHandlesOverlay(
-          delegate: _selectionDelegate,
+          delegate: delegate,
           color: widget.config.handleColor,
           onDragStart: () {
             _ignoreNextPointerUpAfterHandleDrag = true;
+            _selectedTextOverride = null;
             _removeMenu();
           },
           onDragEnd: () {
             final target = _selectedTarget;
-            final rect = _selectionDelegate.selectedGlobalRect;
+            final rect = delegate.selectedGlobalRect;
             if (target != null && rect != null) {
               _selectedRect = rect;
               _showSelectedMenu(target, rect);
@@ -282,14 +304,47 @@ class _MarkdownCustomSelectionAreaState
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _pendingHandleRefresh = false;
       if (!mounted) return;
-      if (_selectedTarget != null && _selectionDelegate.hasSelection) {
+      final delegate = _activeSelectionDelegate ?? _selectionDelegate;
+      if (_selectedTarget != null && delegate.hasSelection) {
         _showHandles();
       }
     });
   }
+
+  void registerSelectionUnit(
+    String targetId,
+    _MarkdownSelectionDelegate delegate,
+  ) {
+    final existingDelegate = _selectionUnits[targetId];
+    if (existingDelegate == delegate) return;
+    existingDelegate?.removeListener(_handleSelectionGeometryChanged);
+    _selectionUnits[targetId] = delegate;
+    delegate.addListener(_handleSelectionGeometryChanged);
+  }
+
+  void unregisterSelectionUnit(
+    String targetId,
+    _MarkdownSelectionDelegate delegate,
+  ) {
+    if (_selectionUnits[targetId] != delegate) return;
+    delegate.removeListener(_handleSelectionGeometryChanged);
+    _selectionUnits.remove(targetId);
+    if (_activeSelectionDelegate == delegate) {
+      _activeSelectionDelegate = null;
+      _removeHandles();
+      _removeMenu();
+    }
+  }
+
+  void _clearUnitSelections({String? exceptTargetId}) {
+    for (final entry in _selectionUnits.entries) {
+      if (entry.key == exceptTargetId) continue;
+      entry.value.clear();
+    }
+  }
 }
 
-class MarkdownSelectionTargetWidget extends StatelessWidget {
+class MarkdownSelectionTargetWidget extends StatefulWidget {
   final MarkdownSelectionTarget target;
   final Widget child;
 
@@ -300,21 +355,87 @@ class MarkdownSelectionTargetWidget extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  State<MarkdownSelectionTargetWidget> createState() =>
+      _MarkdownSelectionTargetWidgetState();
+}
+
+class _MarkdownSelectionTargetWidgetState
+    extends State<MarkdownSelectionTargetWidget> {
+  final GlobalKey _targetKey = GlobalKey();
+  final _MarkdownSelectionDelegate _selectionDelegate =
+      _MarkdownSelectionDelegate();
+  _MarkdownCustomSelectionAreaState? _controller;
+  String? _registeredTargetId;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncRegistration();
+  }
+
+  @override
+  void didUpdateWidget(MarkdownSelectionTargetWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.target.id != widget.target.id) {
+      _unregister();
+      _syncRegistration();
+    }
+  }
+
+  @override
+  void dispose() {
+    _unregister();
+    _selectionDelegate.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final controller = _MarkdownCustomSelectionScope.maybeOf(context);
-    if (controller == null) return child;
+    if (controller == null) return widget.child;
+    _syncRegistration(controller);
     return GestureDetector(
+      key: _targetKey,
       behavior: HitTestBehavior.translucent,
       onLongPressStart: (details) {
-        final rect = _globalRectOf(context);
-        controller.showInitialMenu(target, details.globalPosition, rect);
+        final rect = _globalRectOfTarget();
+        controller.showInitialMenu(widget.target, details.globalPosition, rect);
       },
-      child: child,
+      child: SelectionContainer(
+        delegate: _selectionDelegate,
+        child: widget.child,
+      ),
     );
   }
 
-  Rect _globalRectOf(BuildContext context) {
-    final renderObject = context.findRenderObject();
+  void _syncRegistration([_MarkdownCustomSelectionAreaState? controller]) {
+    final nextController =
+        controller ?? _MarkdownCustomSelectionScope.maybeOf(context);
+    if (_controller == nextController &&
+        _registeredTargetId == widget.target.id) {
+      return;
+    }
+    _unregister();
+    _controller = nextController;
+    _registeredTargetId = widget.target.id;
+    nextController?.registerSelectionUnit(
+      widget.target.id,
+      _selectionDelegate,
+    );
+  }
+
+  void _unregister() {
+    final controller = _controller;
+    final targetId = _registeredTargetId;
+    if (controller != null && targetId != null) {
+      controller.unregisterSelectionUnit(targetId, _selectionDelegate);
+    }
+    _controller = null;
+    _registeredTargetId = null;
+  }
+
+  Rect _globalRectOfTarget() {
+    final renderObject = _targetKey.currentContext?.findRenderObject();
     if (renderObject is RenderBox) {
       final topLeft = renderObject.localToGlobal(Offset.zero);
       return topLeft & renderObject.size;
@@ -415,6 +536,11 @@ class _MarkdownSelectionDelegate
     currentSelectionStartIndex = selectedIndexes.first;
     currentSelectionEndIndex = selectedIndexes.last;
     layoutDidChange();
+  }
+
+  void selectAllContent() {
+    _activeTargetRect = null;
+    dispatchSelectionEvent(const SelectAllSelectionEvent());
   }
 
   void clear() {

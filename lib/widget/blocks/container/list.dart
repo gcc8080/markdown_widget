@@ -117,6 +117,11 @@ class ListNode extends ElementNode {
           getDefaultMarker(isOrdered, depth, parentStyle?.color, index,
               parentStyleHeight / 2, config);
     }
+    final directChildren = contentChildren
+        .where((child) => child is! UlOrOLNode)
+        .toList(growable: false);
+    final nestedChildren =
+        contentChildren.whereType<UlOrOLNode>().toList(growable: false);
     final item = Padding(
       padding: EdgeInsets.only(bottom: marginBottom),
       child: Row(
@@ -130,15 +135,7 @@ class ListNode extends ElementNode {
           Flexible(
             child: ProxyRichText(
               TextSpan(
-                children: [
-                  if (contentChildren.isNotEmpty) contentChildren.first.build(),
-                  for (final child in contentChildren.skip(1)) ...[
-                    // Introducing a new line before the next list item.
-                    // Otherwise, it might be rendered on the same line, disrupting the layout.
-                    if (child is UlOrOLNode) const TextSpan(text: '\n'),
-                    child.build(),
-                  ],
-                ],
+                children: directChildren.map((child) => child.build()).toList(),
               ),
               richTextBuilder: visitor.richTextBuilder,
             ),
@@ -146,11 +143,28 @@ class ListNode extends ElementNode {
         ],
       ),
     );
+    final selectionItem = visitor.wrapSelectionTarget(
+      item,
+      this,
+      plainText: directPlainText,
+    );
+    if (nestedChildren.isEmpty) {
+      return WidgetSpan(child: selectionItem);
+    }
     return WidgetSpan(
-      child: visitor.wrapSelectionTarget(
-        item,
-        this,
-        plainText: directPlainText,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          selectionItem,
+          for (final child in nestedChildren)
+            Padding(
+              padding: EdgeInsets.only(left: space),
+              child: ProxyRichText(
+                child.build(),
+                richTextBuilder: visitor.richTextBuilder,
+              ),
+            ),
+        ],
       ),
     );
   }

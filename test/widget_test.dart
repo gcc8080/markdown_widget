@@ -458,6 +458,154 @@ void main() {
     );
   });
 
+  testWidgets('select text only selects the pressed semantic unit',
+      (tester) async {
+    const complexMarkdown = '''
+# Custom selection mode
+
+Long press text to open the first menu appears before text is selected.
+Tap **Select text** to select the complete paragraph and show draggable handles.
+
+> A block quote can contain multiple paragraphs.
+> Long pressing either paragraph selects the nearest quote block.
+
+- The first list item is independent.
+- The second list item has direct text.
+  - Nested child text is not part of the initial list-item selection.
+
+| Element | Initial selection |
+| --- | --- |
+| Table cell | Current cell |
+| Code block | Entire code block |
+
+```dart
+void main() {
+  print('hello');
+}
+```
+''';
+
+    MarkdownSelectionMenuContext? selectedContext;
+    Future<String> selectedTextFor(
+      Finder finder, {
+      String data = complexMarkdown,
+    }) async {
+      selectedContext = null;
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      await tester.pumpWidget(testApp(
+        MarkdownWidget(
+          data: data,
+          selectionConfig: MarkdownSelectionConfig(
+            selectedTextMenuBuilder: (context, menuContext) {
+              selectedContext = menuContext;
+              return const Material(child: Text('selected menu'));
+            },
+          ),
+        ),
+      ));
+      final richTextFinder = find.descendant(
+        of: finder.first,
+        matching: find.byType(RichText),
+      );
+      final targetRect = richTextFinder.evaluate().isNotEmpty
+          ? tester.getRect(richTextFinder.first)
+          : tester.getRect(finder.first);
+      await tester.longPressAt(targetRect.topLeft + const Offset(8, 8));
+      await tester.pump();
+      await tester.tap(find.text('选取文字'));
+      await tester.pump();
+      expect(selectedContext, isNotNull);
+      return selectedContext!.selectedText;
+    }
+
+    Finder targetFinder(
+      MarkdownSelectionTargetType type,
+      String text,
+    ) {
+      return find.byWidgetPredicate(
+        (widget) =>
+            widget is MarkdownSelectionTargetWidget &&
+            widget.target.type == type &&
+            widget.target.plainText.contains(text),
+      );
+    }
+
+    final headingText = await selectedTextFor(
+      targetFinder(
+        MarkdownSelectionTargetType.heading,
+        'Custom selection mode',
+      ),
+    );
+    expect(headingText.trim(), 'Custom selection mode');
+    expect(headingText, isNot(contains('Long press text')));
+    expect(headingText, isNot(contains('A block quote')));
+
+    final paragraphText = await selectedTextFor(
+      targetFinder(
+        MarkdownSelectionTargetType.paragraph,
+        'the first menu',
+      ),
+    );
+    expect(paragraphText, contains('the first menu'));
+    expect(paragraphText, contains('Select text'));
+    expect(paragraphText, isNot(contains('Custom selection mode')));
+    expect(paragraphText, isNot(contains('A block quote')));
+
+    final quoteText = await selectedTextFor(
+      targetFinder(
+        MarkdownSelectionTargetType.blockquote,
+        'nearest quote block',
+      ),
+    );
+    expect(quoteText, contains('A block quote'));
+    expect(quoteText, contains('nearest quote block'));
+    expect(quoteText, isNot(contains('The first list item')));
+
+    final listText = await selectedTextFor(
+      targetFinder(
+        MarkdownSelectionTargetType.listItem,
+        'The second list item has direct text',
+      ),
+    );
+    expect(listText, contains('The second list item has direct text'));
+    expect(listText, isNot(contains('Nested child text')));
+    expect(listText, isNot(contains('The first list item')));
+
+    final tableCellText = await selectedTextFor(
+      targetFinder(
+        MarkdownSelectionTargetType.tableCell,
+        'Current cell',
+      ),
+      data: '''
+| Element | Initial selection |
+| --- | --- |
+| Table cell | Current cell |
+| Code block | Entire code block |
+''',
+    );
+    expect(tableCellText.trim(), 'Current cell');
+    expect(tableCellText, isNot(contains('Table cell')));
+    expect(tableCellText, isNot(contains('Code block')));
+
+    final codeText = await selectedTextFor(
+      targetFinder(
+        MarkdownSelectionTargetType.codeBlock,
+        'void main',
+      ),
+      data: '''
+```dart
+void main() {
+  print('hello');
+}
+```
+''',
+    );
+    expect(codeText, contains('void main() {\n'));
+    expect(codeText, contains("print('hello');"));
+    expect(codeText, isNot(contains('Current cell')));
+  });
+
   testWidgets('copy clears custom selection and writes clipboard',
       (tester) async {
     String? clipboardText;

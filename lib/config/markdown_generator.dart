@@ -75,19 +75,36 @@ class MarkdownGenerator {
             span is ConcreteElementNode && span.children.length == 1
                 ? span.children.first
                 : span;
-        final target = MarkdownSelectionTarget(
-          id: 'markdown-selection-block-$index',
-          type: targetNode.selectionTargetType,
-          tag: targetNode.markdownTag,
-          plainText: targetNode.plainText,
-          parentTags: targetNode.parentTags,
-          canSelectText: targetNode.canSelectText,
-        );
-        child = selectionTargetBuilder(child, target);
+        if (_shouldWrapTopLevelSelectionTarget(targetNode)) {
+          final target = MarkdownSelectionTarget(
+            id: 'markdown-selection-block-$index',
+            type: targetNode.selectionTargetType,
+            tag: targetNode.markdownTag,
+            plainText: targetNode.plainText,
+            parentTags: targetNode.parentTags,
+            canSelectText: targetNode.canSelectText,
+          );
+          child = selectionTargetBuilder(child, target);
+        }
       }
       widgets.add(Padding(padding: linesMargin, child: child));
     });
     return widgets;
+  }
+
+  bool _shouldWrapTopLevelSelectionTarget(SpanNode targetNode) {
+    if (targetNode is HeadingNode && targetNode.headingConfig.divider != null) {
+      return false;
+    }
+    switch (targetNode.markdownTag) {
+      case 'blockquote':
+      case 'pre':
+      case 'table':
+      case 'ul':
+      case 'ol':
+        return false;
+    }
+    return true;
   }
 }
 
