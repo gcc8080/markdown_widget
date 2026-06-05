@@ -68,7 +68,10 @@ class MarkdownGenerator {
     final List<Widget> widgets = [];
     spans.asMap().forEach((index, span) {
       final textSpan = spanNodeBuilder?.call(span) ?? span.build();
-      final richText = richTextBuilder?.call(textSpan) ?? Text.rich(textSpan);
+      final richText = _buildTopLevelWidget(
+        textSpan,
+        unwrapBlockWidgetSpan: selectionTargetBuilder != null,
+      );
       Widget child = richText;
       if (selectionTargetBuilder != null) {
         final targetNode =
@@ -105,6 +108,22 @@ class MarkdownGenerator {
         return false;
     }
     return true;
+  }
+
+  Widget _buildTopLevelWidget(
+    InlineSpan textSpan, {
+    required bool unwrapBlockWidgetSpan,
+  }) {
+    if (unwrapBlockWidgetSpan) {
+      if (textSpan is WidgetSpan) return textSpan.child;
+      if (textSpan is TextSpan &&
+          (textSpan.text == null || textSpan.text!.isEmpty) &&
+          textSpan.children?.length == 1) {
+        final child = textSpan.children!.single;
+        if (child is WidgetSpan) return child.child;
+      }
+    }
+    return richTextBuilder?.call(textSpan) ?? Text.rich(textSpan);
   }
 }
 

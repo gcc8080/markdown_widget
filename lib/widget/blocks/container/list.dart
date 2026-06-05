@@ -43,8 +43,10 @@ class UlOrOLNode extends ElementNode {
             children.length,
             (index) {
               final childNode = children[index];
-              return ProxyRichText(childNode.build(),
-                  richTextBuilder: visitor.richTextBuilder);
+              return _buildListChildWidget(
+                childNode.build(),
+                visitor.richTextBuilder,
+              );
             },
           ),
         ),
@@ -159,9 +161,9 @@ class ListNode extends ElementNode {
           for (final child in nestedChildren)
             Padding(
               padding: EdgeInsets.only(left: space),
-              child: ProxyRichText(
+              child: _buildListChildWidget(
                 child.build(),
-                richTextBuilder: visitor.richTextBuilder,
+                visitor.richTextBuilder,
               ),
             ),
         ],
@@ -220,6 +222,14 @@ class ListConfig implements ContainerConfig {
 
 ///the function to get marker widget
 typedef ListMarker = Widget? Function(bool isOrdered, int depth, int index);
+
+Widget _buildListChildWidget(
+  InlineSpan child,
+  Widget Function(InlineSpan)? richTextBuilder,
+) {
+  if (child is WidgetSpan) return child.child;
+  return ProxyRichText(child, richTextBuilder: richTextBuilder);
+}
 
 ///the default marker widget for unordered list
 class _UlMarker extends StatelessWidget {

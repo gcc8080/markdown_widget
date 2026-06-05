@@ -883,6 +883,209 @@ void main() {
     expect(find.text('复制'), findsOneWidget);
   });
 
+  testWidgets('selection survives selected unit recycling during scroll',
+      (tester) async {
+    final lines = List.generate(80, (index) => 'paragraph $index').join('\n\n');
+    MarkdownSelectionMenuContext? selectedContext;
+    await tester.pumpWidget(testApp(
+      MarkdownWidget(
+        data: lines,
+        selectionConfig: MarkdownSelectionConfig(
+          selectedTextMenuBuilder: (context, menuContext) {
+            selectedContext = menuContext;
+            return Material(
+                child: Text(menuContext.builtInActions.single.label));
+          },
+        ),
+      ),
+    ));
+
+    await tester.longPress(find.text('paragraph 0'));
+    await tester.pump();
+    await tester.tap(find.text('选取文字'));
+    await tester.pump();
+    expect(selectedContext?.selectedText, contains('paragraph 0'));
+    expect(find.text('复制'), findsOneWidget);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -5000));
+    await tester.pumpAndSettle();
+    expect(find.text('paragraph 0'), findsNothing);
+    expect(find.text('复制'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('markdown-selection-start-handle')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('markdown-selection-end-handle')),
+      findsNothing,
+    );
+
+    await tester.drag(find.byType(ListView), const Offset(0, 5000));
+    await tester.pumpAndSettle();
+    expect(find.text('paragraph 0'), findsOneWidget);
+    expect(find.text('复制'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('markdown-selection-start-handle')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('markdown-selection-end-handle')),
+      findsOneWidget,
+    );
+
+    await tester.tapAt(
+      tester.getTopLeft(find.text('paragraph 0')) + const Offset(8, 8),
+    );
+    await tester.pump();
+    expect(find.text('复制'), findsOneWidget);
+    expect(selectedContext?.selectedText, contains('paragraph 0'));
+  });
+
+  testWidgets('semantic block selection survives recycling during scroll',
+      (tester) async {
+    final filler =
+        List.generate(80, (index) => 'filler paragraph $index').join('\n\n');
+    final cases = [
+      (
+        type: MarkdownSelectionTargetType.heading,
+        data: '# Heading target\n\n$filler',
+        targetText: 'Heading target',
+        expectedText: 'Heading target',
+      ),
+      (
+        type: MarkdownSelectionTargetType.listItem,
+        data: '- List target direct text\n  - Nested child text\n\n$filler',
+        targetText: 'List target direct text',
+        expectedText: 'List target direct text',
+      ),
+      (
+        type: MarkdownSelectionTargetType.blockquote,
+        data: '> Quote first paragraph\n>\n> Quote second paragraph\n\n$filler',
+        targetText: 'Quote second paragraph',
+        expectedText: 'Quote first paragraph',
+      ),
+      (
+        type: MarkdownSelectionTargetType.tableCell,
+        data:
+            '| Left | Right |\n| --- | --- |\n| table target cell | other cell |\n\n$filler',
+        targetText: 'table target cell',
+        expectedText: 'table target cell',
+      ),
+      (
+        type: MarkdownSelectionTargetType.codeBlock,
+        data: '```dart\nvoid target() {\n  print(1);\n}\n```\n\n$filler',
+        targetText: 'void target',
+        expectedText: 'void target()',
+      ),
+    ];
+
+    Finder targetFinder(
+      MarkdownSelectionTargetType type,
+      String targetText,
+    ) {
+      return find.byWidgetPredicate(
+        (widget) =>
+            widget is MarkdownSelectionTargetWidget &&
+            widget.target.type == type &&
+            widget.target.plainText.contains(targetText),
+      );
+    }
+
+    Future<void> longPressTarget(Finder target) async {
+      final richTextFinder = find.descendant(
+        of: target.first,
+        matching: find.byType(RichText),
+      );
+      final targetRect = richTextFinder.evaluate().isNotEmpty
+          ? tester.getRect(richTextFinder.first)
+          : tester.getRect(target.first);
+      await tester.longPressAt(targetRect.topLeft + const Offset(8, 8));
+    }
+
+    Future<void> tapInsideTarget(Finder target) async {
+      final richTextFinder = find.descendant(
+        of: target.first,
+        matching: find.byType(RichText),
+      );
+      final targetRect = richTextFinder.evaluate().isNotEmpty
+          ? tester.getRect(richTextFinder.first)
+          : tester.getRect(target.first);
+      await tester.tapAt(targetRect.topLeft + const Offset(8, 8));
+    }
+
+    for (final testCase in cases) {
+      MarkdownSelectionMenuContext? selectedContext;
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      await tester.pumpWidget(testApp(
+        MarkdownWidget(
+          data: testCase.data,
+          selectionConfig: MarkdownSelectionConfig(
+            selectedTextMenuBuilder: (context, menuContext) {
+              selectedContext = menuContext;
+              return Material(
+                child: Text(menuContext.builtInActions.single.label),
+              );
+            },
+          ),
+        ),
+      ));
+
+      final target = targetFinder(testCase.type, testCase.targetText);
+      expect(target, findsOneWidget, reason: testCase.type.name);
+      await longPressTarget(target);
+      await tester.pump();
+      await tester.tap(find.text('选取文字'));
+      await tester.pump();
+      expect(
+        selectedContext?.selectedText,
+        contains(testCase.expectedText),
+        reason: testCase.type.name,
+      );
+      expect(find.text('复制'), findsOneWidget, reason: testCase.type.name);
+
+      await tester.drag(find.byType(ListView), const Offset(0, -5000));
+      await tester.pumpAndSettle();
+      expect(target, findsNothing, reason: testCase.type.name);
+      expect(find.text('复制'), findsNothing, reason: testCase.type.name);
+      expect(
+        find.byKey(const ValueKey('markdown-selection-start-handle')),
+        findsNothing,
+        reason: testCase.type.name,
+      );
+      expect(
+        find.byKey(const ValueKey('markdown-selection-end-handle')),
+        findsNothing,
+        reason: testCase.type.name,
+      );
+
+      await tester.drag(find.byType(ListView), const Offset(0, 5000));
+      await tester.pumpAndSettle();
+      expect(target, findsOneWidget, reason: testCase.type.name);
+      expect(find.text('复制'), findsNothing, reason: testCase.type.name);
+      expect(
+        find.byKey(const ValueKey('markdown-selection-start-handle')),
+        findsOneWidget,
+        reason: testCase.type.name,
+      );
+      expect(
+        find.byKey(const ValueKey('markdown-selection-end-handle')),
+        findsOneWidget,
+        reason: testCase.type.name,
+      );
+
+      selectedContext = null;
+      await tapInsideTarget(target);
+      await tester.pump();
+      expect(find.text('复制'), findsOneWidget, reason: testCase.type.name);
+      expect(
+        selectedContext?.selectedText,
+        contains(testCase.expectedText),
+        reason: testCase.type.name,
+      );
+    }
+  });
+
   testWidgets('tap outside active selection clears menu and handles',
       (tester) async {
     await tester.pumpWidget(testApp(

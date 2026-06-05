@@ -18,7 +18,7 @@
 - [x] 3.1 Implement an internal controlled root selection wrapper using Flutter `3.27.4` public `SelectionContainer`, `SelectionContainerDelegate`, `Selectable`, and `SelectionEvent` primitives without importing private Flutter members.
 - [x] 3.2 Register semantic-unit selection delegates beneath the stable root and implement programmatic complete-unit selection for the resolved initial target.
 - [x] 3.3 Render native-style selection highlight and draggable handles after initial selection and allow handle updates to cross Markdown block boundaries.
-- [ ] 3.4 Keep logical selection state stable while `ListView.builder` children recycle and ensure handles disappear and reappear correctly when selected endpoints leave and return to the viewport.
+- [x] 3.4 Keep logical selection state stable while `ListView.builder` children recycle and ensure handles disappear and reappear correctly when selected endpoints leave and return to the viewport.
 - [x] 3.5 Expose internal controller operations for clear selection, selected plain-text retrieval, selected-region hit testing, and handle visibility updates.
 
 ## 4. Custom Menu and Gesture Lifecycle
@@ -44,6 +44,6 @@
 - [x] 6.2 Add widget tests for initial-menu behavior, including no immediate selection, builder hide/reorder of "Select text", link long press, and text-free targets with and without application actions.
 - [x] 6.3 Add semantic initialization tests for headings, paragraphs, list-item direct content, task-list item text, nested lists, multi-paragraph block quotes, nested block quotes, code blocks, inline formatting, and table cells.
 - [ ] 6.4 Add interaction tests for table-cell handle adjustment, cross-block handle dragging, drag-time menu hiding and restoration, tap-inside restoration, tap-outside clearing, and action-time clearing.
-- [ ] 6.5 Add scroll tests proving selection survives endpoint scrolling out of and back into the viewport while menus remain hidden after scrolling ends.
+- [x] 6.5 Add scroll tests proving selection survives endpoint scrolling out of and back into the viewport while menus remain hidden after scrolling ends.
 - [x] 6.6 Repair or replace the local Flutter `3.27.4` FVM SDK if its Dart VM crash persists, then run formatter, analyzer, package widget tests, and example verification with Flutter `3.27.4`.
 - [ ] 6.7 Manually verify Android and iOS touch long-press flows against the custom selection example under Flutter `3.27.4`.
