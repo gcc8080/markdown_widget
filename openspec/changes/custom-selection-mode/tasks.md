@@ -17,7 +17,7 @@
 
 - [x] 3.1 Implement an internal controlled root selection wrapper using Flutter `3.27.4` public `SelectionContainer`, `SelectionContainerDelegate`, `Selectable`, and `SelectionEvent` primitives without importing private Flutter members.
 - [x] 3.2 Register semantic-unit selection delegates beneath the stable root and implement programmatic complete-unit selection for the resolved initial target.
-- [ ] 3.3 Render native-style selection highlight and draggable handles after initial selection and allow handle updates to cross Markdown block boundaries.
+- [x] 3.3 Render native-style selection highlight and draggable handles after initial selection and allow handle updates to cross Markdown block boundaries.
 - [ ] 3.4 Keep logical selection state stable while `ListView.builder` children recycle and ensure handles disappear and reappear correctly when selected endpoints leave and return to the viewport.
 - [x] 3.5 Expose internal controller operations for clear selection, selected plain-text retrieval, selected-region hit testing, and handle visibility updates.
 

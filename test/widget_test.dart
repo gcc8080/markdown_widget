@@ -797,6 +797,56 @@ void main() {
     expect(find.text('复制'), findsOneWidget);
   });
 
+  testWidgets('end handle drag can extend selection into another markdown unit',
+      (tester) async {
+    MarkdownSelectionMenuContext? selectedContext;
+    await tester.pumpWidget(testApp(
+      MarkdownWidget(
+        data: 'first paragraph\n\n> quoted paragraph',
+        selectionConfig: MarkdownSelectionConfig(
+          selectedTextMenuBuilder: (context, menuContext) {
+            selectedContext = menuContext;
+            return Material(
+              child: TextButton(
+                onPressed: () =>
+                    menuContext.builtInActions.single.onPressed(menuContext),
+                child: Text(menuContext.builtInActions.single.label),
+              ),
+            );
+          },
+        ),
+      ),
+    ));
+
+    await tester.longPress(find.text('first paragraph'));
+    await tester.pump();
+    await tester.tap(find.text('选取文字'));
+    await tester.pump();
+    expect(selectedContext?.selectedText, contains('first paragraph'));
+    expect(selectedContext?.selectedText, isNot(contains('quoted paragraph')));
+
+    final quoteTarget = find.byWidgetPredicate(
+      (widget) =>
+          widget is MarkdownSelectionTargetWidget &&
+          widget.target.type == MarkdownSelectionTargetType.blockquote &&
+          widget.target.plainText.contains('quoted paragraph'),
+    );
+    final quotePoint = tester.getRect(quoteTarget.first).center;
+    final endHandle =
+        find.byKey(const ValueKey('markdown-selection-end-handle'));
+    final gesture = await tester.startGesture(tester.getCenter(endHandle));
+    await gesture.moveTo(quotePoint);
+    await tester.pump();
+    expect(find.text('复制'), findsNothing);
+
+    await gesture.up();
+    await tester.pump();
+
+    expect(selectedContext?.selectedText, contains('first paragraph'));
+    expect(selectedContext?.selectedText, contains('quoted paragraph'));
+    expect(find.text('复制'), findsOneWidget);
+  });
+
   testWidgets('scroll hides selected menu without clearing handles',
       (tester) async {
     final lines = List.generate(40, (index) => 'paragraph $index').join('\n\n');

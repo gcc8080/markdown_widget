@@ -31,8 +31,7 @@ final GoRouter router = GoRouter(
             RouterEnum.readme,
             StoreConnector<RootState, String>(
               builder: (ctx, state) {
-                final asset =
-                    state == 'zh' ? 'assets/demo_zh.md' : 'assets/demo_en.md';
+                final asset = _demoAssetForLanguage(state);
                 return MarkdownPage(assetsPath: asset, key: Key(asset));
               },
               converter: ChangeLanguage.storeConverter,
@@ -40,11 +39,26 @@ final GoRouter router = GoRouter(
         _buildRoute(RouterEnum.editor, EditMarkdownPage()),
         _buildRoute(RouterEnum.sample_latex, LatexPage()),
         _buildRoute(RouterEnum.sample_html, HtmlPage()),
-        _buildRoute(RouterEnum.custom_selection, CustomSelectionPage()),
+        _buildRoute(
+            RouterEnum.custom_selection,
+            StoreConnector<RootState, String>(
+              builder: (ctx, state) {
+                final asset = _demoAssetForLanguage(state);
+                return CustomSelectionPage(
+                  assetsPath: asset,
+                  key: Key('custom-selection-$asset'),
+                );
+              },
+              converter: ChangeLanguage.storeConverter,
+            )),
       ],
     ),
   ],
 );
+
+String _demoAssetForLanguage(String language) {
+  return language == 'zh' ? 'assets/demo_zh.md' : 'assets/demo_en.md';
+}
 
 GoRoute _buildRoute(RouterEnum path, Widget page) {
   return GoRoute(
